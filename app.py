@@ -185,13 +185,57 @@ st.markdown("""
 [data-testid="stSelectbox"] div[role="combobox"] * {
   color: var(--fg) !important;
 }
-[data-testid="stSelectbox"] div[role="combobox"] {
-  border-color: var(--border) !important;
-}
-[data-testid="stSelectbox"] svg {
+/* Dropdown menu Selectbox (kadang dirender sebagai portal) */
+div[role="listbox"],
+div[role="listbox"] * {
   color: var(--fg) !important;
+  background: var(--card) !important;
+  opacity: 1 !important;
+}
+
+/* Setiap item option di dalam listbox */
+div[role="option"],
+div[role="option"] * {
+  color: var(--fg) !important;
+  opacity: 1 !important;
+}
+
+/* Placeholder/selected value di combobox agar tidak transparan */
+[data-testid="stSelectbox"] div[role="combobox"] [aria-hidden="true"] {
+  color: var(--fg) !important;
+  opacity: 1 !important;
+}
+
+/* Pastikan area input selectbox punya latar yang kontras */
+[data-testid="stSelectbox"] div[role="combobox"] {
+  background: var(--card) !important;
 }
 </style>
+/* Dropdown menu Selectbox (kadang dirender sebagai portal) */
+div[role="listbox"],
+div[role="listbox"] * {
+  color: var(--fg) !important;
+  background: var(--card) !important;
+  opacity: 1 !important;
+}
+
+/* Setiap item option di dalam listbox */
+div[role="option"],
+div[role="option"] * {
+  color: var(--fg) !important;
+  opacity: 1 !important;
+}
+
+/* Placeholder/selected value di combobox agar tidak transparan */
+[data-testid="stSelectbox"] div[role="combobox"] [aria-hidden="true"] {
+  color: var(--fg) !important;
+  opacity: 1 !important;
+}
+
+/* Pastikan area input selectbox punya latar yang kontras */
+[data-testid="stSelectbox"] div[role="combobox"] {
+  background: var(--card) !important;
+}
 """, unsafe_allow_html=True)
 
 
