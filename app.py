@@ -562,7 +562,7 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     return buf.read()
 
 # -----------------------------
-# UI — Sidebar + Mobile fallback
+# UI — Sidebar
 # -----------------------------
 st.sidebar.header("Pengaturan")
 
@@ -581,36 +581,10 @@ if _saved:
 else:
     st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
 
-top_n_sb = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1, key="top_n_sb")
-buckets_sb = st.sidebar.multiselect(
-    "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"], key="buckets_sb"
+top_n = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1)
+show_bucket_only = st.sidebar.multiselect(
+    "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
-
-# === Mobile-friendly controls (fallback bila sidebar tertutup) ===
-with st.expander("⚙️ Pengaturan (Mobile Friendly)", expanded=False):
-    st.caption("Gunakan panel ini di layar kecil jika sidebar tertutup.")
-    uploaded_m = st.file_uploader(
-        "Unggah data (CSV / XLS/XLSX/Parquet)", type=["csv","xls","xlsx","parquet"], key="uploaded_m"
-    )
-    if uploaded_m is not None:
-        dst = _save_uploaded(uploaded_m)
-        st.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
-        st.cache_data.clear()
-        st.rerun()
-
-    top_n_m = st.number_input(
-        "Top N prioritas (Mobile)", min_value=1, value=int(st.session_state.get("top_n_sb", 20)), step=1, key="top_n_m"
-    )
-    buckets_m = st.multiselect(
-        "Filter bucket (Mobile)",
-        ["Very High","High","Med","Low","Very Low"],
-        default=st.session_state.get("buckets_sb", ["Very High","High"]),
-        key="buckets_m"
-    )
-
-# Ambil nilai final: gunakan input Mobile jika ada
-top_n = int(st.session_state.get("top_n_m") or st.session_state.get("top_n_sb") or 20)
-show_bucket_only = st.session_state.get("buckets_m") or st.session_state.get("buckets_sb") or ["Very High","High"]
 
 # -----------------------------
 # Load + compute
