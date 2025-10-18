@@ -5,8 +5,7 @@ Aplikasi Streamlit untuk Early Delinquency Risk Score (EDRS) di Indonesia: penil
 ## Fitur
 - Skor EDRS (rule-based) + bucket risiko
 - Tabel prioritas dan viewer per ID
-- Narasi hukum terkurasi (Pasal KUHPerdata whitelist)
-- Ekspor Excel siap dibagikan
+- Narasi hukum
 
 ## Cara jalan lokal
 ```bash
