@@ -1,3 +1,5 @@
+# app.py — EDRS Streamlit (Rule-based) — single-file, mobile-clean
+
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -7,17 +9,7 @@ import pandas as pd
 import streamlit as st
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Client configuration options
-# ────────────────────────────────────────────────────────────────────────────────
-# Configure Streamlit's client options directly within the script.  This hides
-# the developer toolbar (including Stop/Share buttons) and page navigation
-# without relying on an external config.toml file.  Only `client` options can
-# be set with `st.set_option`, per Streamlit's documentation【766448186703015†L183-L193】.
-st.set_option("client.toolbarMode", "viewer")  # hide dev toolbar completely
-st.set_option("client.showSidebarNavigation", False)  # no sidebar page navigation
-
-# ────────────────────────────────────────────────────────────────────────────────
-# Page config + global CSS
+# Page config + built-in client options (tanpa config.toml)
 # ────────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="EDRS — Early Delinquency Risk Score",
@@ -26,34 +18,40 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Fonts & Material Icons
-# Only load the Inter font.  Streamlit already loads its own icon fonts,
-# so including additional Material icons can cause fallback text (e.g.,
-# "keyboard_double_arrow_right") to appear on some devices when the font
-# fails to load.  By omitting the Material icon imports, we allow
-# Streamlit’s bundled fonts to handle icons correctly.
+# Hilangkan toolbar dev (Stop/Share), navigasi sidebar bawaan
+st.set_option("client.toolbarMode", "viewer")
+st.set_option("client.showSidebarNavigation", False)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Global CSS (mobile-first) — sembunyikan seluruh header/toolbar/menu/footer
+# serta tombol collapse sidebar & fallback text material icons
+# ────────────────────────────────────────────────────────────────────────────────
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 """
 
-# CSS for responsiveness and to hide collapsed sidebar arrow
 GLOBAL_CSS = f"""{font_link}
 <style>
 :root {{
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
 }}
+/* Hilangkan semua fallback teks ikon material bila ada */
+span[class*="material"] {{
+  font-size:0 !important; line-height:0 !important; visibility:hidden !important;
+}}
 html, body,
 [data-testid="stAppViewContainer"] * {{
-  font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-body) !important;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }}
 h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 .legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
 .small-note {{ color:#57606a; font-size:12px; }}
+
+/* Responsif mobile */
 @media (max-width: 640px) {{
   :root {{ --fs-base: 13px; }}
   h1 {{ font-size:1.55rem !important; }}
@@ -61,59 +59,31 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
   .block-container {{ padding-top:1rem !important; padding-bottom:2rem !important; }}
   .stDownloadButton {{ width:100% !important; }}
 }}
-[data-testid="stSidebar"] {{
-  min-width:290px; width:290px;
-}}
-/*
-  Completely hide the sidebar collapse control and all its child elements.  
-  This prevents fallback text such as “keyboard_double_arrow_right” from
-  appearing when Material icon fonts fail to load on certain devices.
-  The collapse control has changed its data-testid in different Streamlit
-  versions, so we target both camelCase and kebab-case.  We select only
-  <div> elements to avoid accidental matches on other widgets.  The nested
-  selectors ensure child elements are also hidden.
-*/
-div[data-testid="collapsedControl"],
-div[data-testid="collapsedControl"] *,
-div[data-testid="collapsed-control"],
-div[data-testid="collapsed-control"] * {{
-  display: none !important;
-}}
-/*
-  Hide any remaining Material icon spans to prevent fallback text such as
-  "keyboard_double_arrow_right" or other icon names from appearing when
-  the icon fonts fail to load on certain mobile browsers.  This rule sets
-  the font-size of all spans whose class names include "material" to zero,
-  effectively making them invisible while preserving layout.  Adjust or
-  remove this rule if you later need to display icons explicitly.
-*/
-span[class*="material"] {{
-  font-size: 0 !important;
-  line-height: 0 !important;
-}}
 
-/* Additional global overrides for Streamlit UI elements to ensure a clean,
-   professional look across devices.  We hide the main menu, header, and
-   footer entirely so the top bar (with developer tools, stop and share
-   buttons) disappears on mobile and desktop alike.  We also remove the
-   status widget and toolbar that hold the “Stop”, “Share” and other icons
-   using their data-testid attributes.  These rules complement the
-   collapse-control selectors above and ensure no residual icon names leak
-   through as text.*/
-#MainMenu { visibility: hidden !important; }
-header { visibility: hidden !important; }
-footer { visibility: hidden !important; }
+/* Sidebar width */
+[data-testid="stSidebar"] {{ min-width:290px; width:290px; }}
 
+/* Hapus semua elemen header/toolbar/menu/footer agar bersih di HP & desktop */
+#MainMenu,
+header, footer,
 div[data-testid="stToolbar"],
-div[data-testid="stStatusWidget"] {
-  display: none !important;
-}
+div[data-testid=\"stStatusWidget\"],
+div[data-testid="stDecoration"] {{
+  display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
+}}
+
+/* Hapus tombol collapse sidebar (menghilangkan teks 'keyboard_double_arrow_right') */
+[data-testid="collapsed-control"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"] {{
+  display:none !important; visibility:hidden !important;
+}}
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Constants and paths
+# Konstanta & Path
 # ────────────────────────────────────────────────────────────────────────────────
 PROMPT_VERSION = "v5-assertive-collateral"
 CACHE_DIR = Path("./legal_conclusions"); CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -164,7 +134,7 @@ GEMINI_MODEL = (
 GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/{GEMINI_MODEL}:generateContent"
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Utility functions
+# Utilities
 # ────────────────────────────────────────────────────────────────────────────────
 def _load_index() -> dict:
     if INDEX_PATH.exists():
@@ -198,7 +168,6 @@ def _call_gemini(prompt_text: str, timeout: int = 40) -> str:
     return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 def _sanitize_plain(text: str) -> str:
-    """Clean LLM output from markup symbols and hidden phrases."""
     t = re.sub(r'^\s*#{1,6}\s*', '', text, flags=re.MULTILINE)
     t = t.replace('**', '')
     t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)
@@ -215,7 +184,6 @@ def _sanitize_plain(text: str) -> str:
 # Data loading helpers
 # ────────────────────────────────────────────────────────────────────────────────
 def _saved_file_path() -> Path | None:
-    """Return saved data file if exists."""
     for ext in (".csv", ".xlsx", ".xls", ".parquet"):
         p = SAVED_PATH.with_suffix(ext)
         if p.exists():
@@ -229,7 +197,6 @@ def _save_uploaded(file: "UploadedFile") -> Path:
     return dst
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize column names to match expected schema."""
     new_cols = []
     for c in df.columns:
         s = str(c).strip()
@@ -254,7 +221,6 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def _read_file_any(path: Path) -> pd.DataFrame:
-    """Read CSV/XLS/XLSX/Parquet and normalize columns."""
     suf = path.suffix.lower()
     if suf == '.csv':
         try: df = pd.read_csv(path)
@@ -275,7 +241,6 @@ def _read_file_any(path: Path) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
-    """Load data from saved file or sample repository."""
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
         return _read_file_any(saved_path)
@@ -290,7 +255,7 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
     raise FileNotFoundError("Tidak ada data tersimpan maupun sampel bawaan. Silakan unggah file.")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Core EDRS pipeline (features, scoring, bucket)
+# Core EDRS (fitur, skor, bucket)
 # ────────────────────────────────────────────────────────────────────────────────
 def compute_features(df: pd.DataFrame):
     must_have = ["ID", "LIMIT_BAL", "default.payment.next.month"]
@@ -392,6 +357,7 @@ def generate_insight(row_raw: pd.Series, row_skor: pd.Series, limit_pct: pd.Seri
     late6     = int(row_skor["count_telat_6m"])
     late3     = int(row_skor["count_telat_3m"])
     max_dpd   = int(row_skor["max_tunggakan_6m"])
+    trend_txt = "meningkat" jika := 1
     trend_txt = "meningkat" if bool(row_skor["bill_trend_up"]) else "stabil"
     ratio_desc = ratio_text(float(row_skor["ratio_bayar_last"]))
     bucket    = str(row_skor["bucket"])
@@ -442,7 +408,6 @@ def _fallback_conclusion(row_raw: pd.Series, row_skor: pd.Series) -> str:
     garis.append("Izinkan tim collection melakukan dokumentasi seluruh tahapan penagihan sebagai bukti bahwa tata cara telah dilakukan secara prosedural serta simpan seluruh komunikasi tagihan dan pembayaran secara lengkap.")
     return " ".join(garis)
 
-# Build Gemini prompts
 def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     ctx = {
         "ID": int(row_raw.get("ID")),
@@ -519,7 +484,6 @@ def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Ser
 # Excel export
 # ────────────────────────────────────────────────────────────────────────────────
 def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
-    """Build Excel file with multiple sheets and summary."""
     buf = io.BytesIO()
     now_str     = datetime.now().strftime("%d %B %Y, %H:%M WIB")
     kategori    = "Prioritas Koleksi — EDRS (Rule-based)"
@@ -590,7 +554,7 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     return buf.read()
 
 # ────────────────────────────────────────────────────────────────────────────────
-# UI — Sidebar controls
+# UI — Sidebar
 # ────────────────────────────────────────────────────────────────────────────────
 st.sidebar.header("Pengaturan")
 
@@ -614,7 +578,7 @@ show_bucket_only = st.sidebar.multiselect(
 )
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Load + compute and render
+# Load + compute + render
 # ────────────────────────────────────────────────────────────────────────────────
 try:
     raw_df = load_data("saved-first", str(_saved) if _saved else "")
@@ -629,7 +593,6 @@ try:
     st.title("EDRS — Early Delinquency Risk Score")
     st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
 
-    # Top Prioritas with Top N input inline
     col_header, col_topn = st.columns([4,1])
     col_header.subheader("Top Prioritas Very High atau High")
     top_n_inline = col_topn.number_input("Top N", min_value=1, value=20, step=1)
@@ -637,7 +600,6 @@ try:
     df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n_inline)).reset_index(drop=True)
     st.dataframe(df_show[cols_for_display], width='stretch', hide_index=True)
 
-    # Download Excel
     with st.spinner("Menyiapkan Excel…"):
         excel_bytes = build_excel(top_prior_all, cols_for_display)
     st.download_button(
@@ -646,7 +608,6 @@ try:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # Viewer per-ID
     st.markdown("---")
     st.subheader("Viewer Interaktif — Masukkan ID untuk melihat detail")
 
@@ -682,7 +643,7 @@ try:
             st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), width='stretch', hide_index=True)
 
         st.markdown("#### Ringkasan Rules")
-        rules_df = pd.DataFrame([{ 
+        rules_df = pd.DataFrame([{
             "Count telat 3m": int(row_skor["count_telat_3m"]),
             "Count telat 6m": int(row_skor["count_telat_6m"]),
             "Max tunggakan 6m": int(row_skor["max_tunggakan_6m"]),
