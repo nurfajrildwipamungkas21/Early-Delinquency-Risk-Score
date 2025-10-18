@@ -69,6 +69,35 @@ div[data-testid="collapsed-control"],
 div[data-testid="collapsed-control"] * {{
   display: none !important;
 }}
+/*
+  Hide any remaining Material icon spans to prevent fallback text such as
+  "keyboard_double_arrow_right" or other icon names from appearing when
+  the icon fonts fail to load on certain mobile browsers.  This rule sets
+  the font-size of all spans whose class names include "material" to zero,
+  effectively making them invisible while preserving layout.  Adjust or
+  remove this rule if you later need to display icons explicitly.
+*/
+span[class*="material"] {{
+  font-size: 0 !important;
+  line-height: 0 !important;
+}}
+
+/* Additional global overrides for Streamlit UI elements to ensure a clean,
+   professional look across devices.  We hide the main menu, header, and
+   footer entirely so the top bar (with developer tools, stop and share
+   buttons) disappears on mobile and desktop alike.  We also remove the
+   status widget and toolbar that hold the “Stop”, “Share” and other icons
+   using their data-testid attributes.  These rules complement the
+   collapse-control selectors above and ensure no residual icon names leak
+   through as text.*/
+#MainMenu { visibility: hidden !important; }
+header { visibility: hidden !important; }
+footer { visibility: hidden !important; }
+
+div[data-testid="stToolbar"],
+div[data-testid="stStatusWidget"] {
+  display: none !important;
+}
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
