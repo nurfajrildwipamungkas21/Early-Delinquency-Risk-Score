@@ -635,6 +635,83 @@ show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
 
+# === Kontrol aksesibilitas UI ===
+theme_choice = st.sidebar.selectbox(
+    "Tema", ["Auto", "Terang", "Gelap"], index=0,
+    help="Auto mengikuti setting sistem. Pilih Terang/Gelap untuk memaksa tema."
+)
+ui_scale = st.sidebar.slider(
+    "Skala UI", min_value=90, max_value=120, value=105, step=5,
+    help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%)."
+)
+
+# === CSS override: kontras tinggi + skala UI + tabel yang jelas ===
+def _vars_for_theme(choice: str) -> str:
+    if choice == "Terang":
+        return """
+        --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
+        --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead: #f3f4f6;
+        """
+    if choice == "Gelap":
+        return """
+        --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
+        --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
+        """
+    # Auto = biarkan default dari CSS awal (prefers-color-scheme)
+    return ""
+
+_ui_fs = round(13.5 * ui_scale/100, 2)  # px
+_theme_vars = _vars_for_theme(theme_choice)
+
+OVERRIDE_CSS = f"""
+<style>
+:root {{
+  --fs-base:{_ui_fs}px;
+  {_theme_vars}
+}}
+/* Tabel: kontras & keterbacaan */
+.stDataFrame table {{
+  font-size: calc(var(--fs-base) * 0.95) !important;
+  color: var(--fg) !important;
+}}
+.stDataFrame thead tr th {{
+  position: sticky; top: 0;
+  background: var(--thead) !important;
+  color: var(--fg) !important;
+  font-weight: 600 !important;
+  border-bottom: 2px solid var(--border) !important;
+}}
+.stDataFrame tbody tr td {{
+  border-color: var(--border) !important;
+  padding: 8px 10px !important;
+}}
+/* Zebra striping + hover */
+.stDataFrame tbody tr:nth-child(even) td {{ background: var(--zebra) !important; }}
+.stDataFrame tbody tr:nth-child(odd)  td {{ background: transparent !important; }}
+.stDataFrame tbody tr:hover td {{
+  background: var(--zebra2) !important;
+}}
+/* Bingkai tabel/card lebih tebal */
+.stDataFrame {{
+  background: var(--card) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: .25rem !important;
+}}
+/* Widget input: pastikan teks kontras */
+input, select, textarea, .stNumberInput input, .stTextInput input {{
+  color: var(--fg) !important; background: var(--card) !important; border-color: var(--border) !important;
+}}
+/* Label widget */
+label, .st-emotion-cache-1b2t2o2, .stMarkdown p, .stCaption, .stText {{
+  color: var(--fg) !important;
+}}
+/* Judul seksi agar menonjol */
+h2, h3 {{ color: var(--fg) !important; }}
+</style>
+"""
+st.markdown(OVERRIDE_CSS, unsafe_allow_html=True)
+
 # Mode mobile (ringkas kolom)
 mobile_compact = st.sidebar.toggle("Mode Mobile (ringkas kolom)", value=True,
                                    help="Saat aktif, tabel utama menampilkan kolom inti agar nyaman di layar HP.")
