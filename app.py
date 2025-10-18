@@ -7,6 +7,16 @@ import pandas as pd
 import streamlit as st
 
 # ────────────────────────────────────────────────────────────────────────────────
+# Client configuration options
+# ────────────────────────────────────────────────────────────────────────────────
+# Configure Streamlit's client options directly within the script.  This hides
+# the developer toolbar (including Stop/Share buttons) and page navigation
+# without relying on an external config.toml file.  Only `client` options can
+# be set with `st.set_option`, per Streamlit's documentation【766448186703015†L183-L193】.
+st.set_option("client.toolbarMode", "viewer")  # hide dev toolbar completely
+st.set_option("client.showSidebarNavigation", False)  # no sidebar page navigation
+
+# ────────────────────────────────────────────────────────────────────────────────
 # Page config + global CSS
 # ────────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -625,7 +635,7 @@ try:
     top_n_inline = col_topn.number_input("Top N", min_value=1, value=20, step=1)
 
     df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n_inline)).reset_index(drop=True)
-    st.dataframe(df_show[cols_for_display], use_container_width=True, hide_index=True)
+    st.dataframe(df_show[cols_for_display], width='stretch', hide_index=True)
 
     # Download Excel
     with st.spinner("Menyiapkan Excel…"):
@@ -655,7 +665,7 @@ try:
         meta_cols_display = [c for c in ["ID","LIMIT_BAL","SEX","EDUCATION","MARRIAGE","AGE"] if c in base_df.columns]
         meta_df = pd.DataFrame({**row_raw[meta_cols_display].to_dict(),
                                 **row_skor[["edrs_score","bucket","next_best_action"]].to_dict()}, index=[0])
-        st.dataframe(meta_df, use_container_width=True, hide_index=True)
+        st.dataframe(meta_df, width='stretch', hide_index=True)
 
         pay_cols = [c for c in [f"PAY_{i}" for i in range(7)] if c in base_df.columns]
         bill_cols = [c for c in [f"BILL_AMT{i}" for i in range(1,7)] if c in base_df.columns]
@@ -663,13 +673,13 @@ try:
 
         if pay_cols:
             st.markdown("#### PAY status keterlambatan per bulan")
-            st.dataframe(pd.DataFrame([row_raw[pay_cols]], columns=pay_cols), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([row_raw[pay_cols]], columns=pay_cols), width='stretch', hide_index=True)
         if bill_cols:
             st.markdown("#### BILL AMT 1 sampai 6 (tagihan 6 bulan)")
-            st.dataframe(pd.DataFrame([row_raw[bill_cols]], columns=bill_cols), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([row_raw[bill_cols]], columns=bill_cols), width='stretch', hide_index=True)
         if pmt_cols:
             st.markdown("#### PAY AMT 1 sampai 6 (pembayaran 6 bulan)")
-            st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), width='stretch', hide_index=True)
 
         st.markdown("#### Ringkasan Rules")
         rules_df = pd.DataFrame([{ 
@@ -681,12 +691,12 @@ try:
             "DPD proxy now": "Yes" if int(row_skor["dpd_proxy_now"]) else "No",
             "Streak telat 2+": "Yes" if int(row_skor["streak_telat2plus"]) else "No",
         }])
-        st.dataframe(rules_df, use_container_width=True, hide_index=True)
+        st.dataframe(rules_df, width='stretch', hide_index=True)
 
         if "default.payment.next.month" in row_skor:
             st.markdown("#### Label Target")
             st.dataframe(pd.DataFrame({"Default payment next month":[row_skor["default.payment.next.month"]]}),
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
 
         st.markdown("#### Insight")
         limit_pct = base_df["LIMIT_BAL"].rank(pct=True); limit_pct.index = base_df["ID"].values
