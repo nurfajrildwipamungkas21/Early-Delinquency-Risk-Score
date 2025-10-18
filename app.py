@@ -65,9 +65,9 @@ html, body,
 span[aria-label="keyboard_double_arrow_right"],
 span[aria-label="keyboard_arrow_right"],
 span[aria-label="keyboard_double_arrow_left"],
-span[aria-label="keyboard_arrow_left"] {
+span[aria-label="keyboard_arrow_left"] {{
   font-size:0 !important; line-height:0 !important; visibility:hidden !important;
-}
+}}
 /* Tipografi umum */
 [data-testid="stAppViewContainer"] * {{
   font-family: var(--font-body) !important;
