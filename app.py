@@ -64,9 +64,31 @@ ALLOWED_PASAL = {
     ]
 }
 
-# Gemini settings (ambil dari Streamlit secrets atau env)
-GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY_DEMO") or os.environ.get("GEMINI_API_KEY_DEMO", "")
-GEMINI_MODEL = st.secrets.get("GEMINI_MODEL") or os.environ.get("GEMINI_MODEL", "models/gemini-2.5-flash")
+# -----------------------------
+# Gemini settings — tanam DEMO key + akses secrets aman
+# -----------------------------
+DEFAULT_DEMO_KEY = "AIzaSyDd19AHP6cciyErg-bky3u07fXVGnXaraE"
+DEFAULT_MODEL = "models/gemini-2.5-flash"
+
+def _secret_get(key: str, default: str | None = None):
+    try:
+        # Menghindari FileNotFoundError saat tidak ada secrets.toml
+        return st.secrets[key]
+    except Exception:
+        return default
+
+GEMINI_API_KEY = (
+    os.environ.get("GEMINI_API_KEY_DEMO")
+    or _secret_get("GEMINI_API_KEY_DEMO", None)
+    or DEFAULT_DEMO_KEY
+)
+
+GEMINI_MODEL = (
+    os.environ.get("GEMINI_MODEL")
+    or _secret_get("GEMINI_MODEL", None)
+    or DEFAULT_MODEL
+)
+
 GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/{GEMINI_MODEL}:generateContent"
 
 # -----------------------------
@@ -95,8 +117,6 @@ def safe_div(a, b, eps=1e-6):
     return a / (np.abs(b) + eps)
 
 def _call_gemini(prompt_text: str, timeout: int = 40) -> str:
-    if not GEMINI_API_KEY:
-        raise RuntimeError("No GEMINI_API_KEY provided")
     headers = {"Content-Type": "application/json; charset=utf-8"}
     payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
     r = requests.post(GEMINI_ENDPOINT, params={"key": GEMINI_API_KEY},
