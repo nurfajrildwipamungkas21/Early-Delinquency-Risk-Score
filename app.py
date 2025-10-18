@@ -357,7 +357,6 @@ def generate_insight(row_raw: pd.Series, row_skor: pd.Series, limit_pct: pd.Seri
     late6     = int(row_skor["count_telat_6m"])
     late3     = int(row_skor["count_telat_3m"])
     max_dpd   = int(row_skor["max_tunggakan_6m"])
-    trend_txt = "meningkat" jika := 1
     trend_txt = "meningkat" if bool(row_skor["bill_trend_up"]) else "stabil"
     ratio_desc = ratio_text(float(row_skor["ratio_bayar_last"]))
     bucket    = str(row_skor["bucket"])
