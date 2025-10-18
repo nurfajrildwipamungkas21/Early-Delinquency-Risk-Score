@@ -1,6 +1,6 @@
 # EDRS Streamlit App
 
-Aplikasi Streamlit untuk Early Delinquency Risk Score (EDRS) di Indonesia: penilaian rule-based, prioritas penagihan, narasi hukum KUHPerdata, dan ekspor Excel.
+Aplikasi Streamlit untuk Early Delinquency Risk Score (EDRS) di Indonesia: penilaian rule-based, prioritas penagihan, narasi dan konsekuensi hukum yang ditimbulkan.
 
 ## Fitur
 - Skor EDRS (rule-based) + bucket risiko
