@@ -1,4 +1,4 @@
-# app.py — EDRS Streamlit (Rule-based) — dynamic + polished narrative
+# app.py — EDRS Streamlit (Rule-based) — dynamic + polished narrative (PROD)
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -8,19 +8,26 @@ import pandas as pd
 import streamlit as st
 
 # -----------------------------
-# Page config + global CSS (professional font)
+# Page config + global CSS
 # -----------------------------
-st.set_page_config(page_title="EDRS — Early Delinquency Risk Score", layout="wide")
+st.set_page_config(
+    page_title="EDRS — Early Delinquency Risk Score",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 USE_CDN_FONT = True
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Inter (UI body) -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- Pastikan font ikon Material tetap tersedia agar tidak tampil sebagai teks -->
+<!-- Material Icons (ligature-based) -->
 <link href="https://fonts.googleapis.com/css2?family=Material+Icons&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Icons+Outlined&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<!-- Material Symbols (variable font) -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 """ if USE_CDN_FONT else ""
 
 GLOBAL_CSS = f"""{font_link}
@@ -29,15 +36,32 @@ GLOBAL_CSS = f"""{font_link}
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
 }}
-/* Jangan override font untuk ikon Material supaya tidak muncul teks 'keyboard_double_arrow_right' */
-.material-icons,
-.material-icons-outlined,
-.material-symbols-outlined {{
-  font-family: 'Material Symbols Outlined','Material Icons','Material Icons Outlined' !important;
-  font-weight: normal; font-style: normal; line-height: 1;
+/* ====== ICONS: pastikan ligatures aktif agar teks tidak tampil ====== */
+.material-icons {{
+  font-family: 'Material Icons' !important;
+  font-weight: normal; font-style: normal;
+  font-size: 24px; line-height: 1; display: inline-block;
+  letter-spacing: normal; text-transform: none; white-space: nowrap; direction: ltr;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga' 1;
 }}
-/* Terapkan font body ke elemen umum, kecuali ikon */
-html, body, [data-testid="stAppViewContainer"] *:not(.material-icons):not(.material-icons-outlined):not(.material-symbols-outlined) {{
+.material-icons-outlined {{
+  font-family: 'Material Icons Outlined' !important;
+  font-weight: normal; font-style: normal;
+  font-size: 24px; line-height: 1; display: inline-block;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga' 1;
+}}
+.material-symbols-outlined {{
+  font-family: 'Material Symbols Outlined' !important;
+  font-weight: normal; font-style: normal; line-height: 1; display: inline-block;
+  /* variable font settings */
+  font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}}
+/* Gunakan body font ke elemen umum, tapi jangan override kelas ikon */
+html, body,
+[data-testid="stAppViewContainer"] *:not(.material-icons):not(.material-icons-outlined):not(.material-symbols-outlined) {{
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -45,6 +69,20 @@ html, body, [data-testid="stAppViewContainer"] *:not(.material-icons):not(.mater
 h1,h2,h3,h4 {{ font-weight: 600; letter-spacing:.2px; }}
 .legal-text {{ font-size: var(--fs-base); line-height: 1.6; letter-spacing:.1px; }}
 .small-note {{ color:#57606a; font-size:12px; }}
+
+/* ====== Responsive polish untuk HP ====== */
+@media (max-width: 640px) {{
+  :root {{ --fs-base: 13px; }}
+  h1 {{ font-size: 1.55rem !important; }}
+  h2 {{ font-size: 1.25rem !important; }}
+  .block-container {{ padding-top: 1rem !important; padding-bottom: 2.25rem !important; }}
+  /* beri ruang untuk tombol unduh agar tidak ketabrak */
+  .stDownloadButton {{ width: 100% !important; }}
+}}
+/* Perbaiki lebar sidebar saat visible (tanpa memaksa selalu terbuka) */
+[data-testid="stSidebar"] {{
+  min-width: 290px; width: 290px;
+}}
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
@@ -56,10 +94,9 @@ PROMPT_VERSION = "v5-assertive-collateral"
 CACHE_DIR = Path("./legal_conclusions"); CACHE_DIR.mkdir(parents=True, exist_ok=True)
 INDEX_PATH = CACHE_DIR / "index.json"
 
-# Persist lokasi file upload agar jadi default
 APP_DIR = Path(__file__).parent
-UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
-SAVED_PATH = UPLOADED_DIR / "latest_data"  # akan diberi ekstensi sesuai file yang disimpan
+UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
+SAVED_PATH = UPLOADED_DIR / "latest_data"  # ekstensi akan disesuaikan
 
 ALLOWED_PASAL = {
     "Perikatan/Wanprestasi": [
@@ -81,7 +118,7 @@ ALLOWED_PASAL = {
 }
 
 # -----------------------------
-# Gemini settings — tanam DEMO key + akses secrets aman
+# Gemini settings
 # -----------------------------
 DEFAULT_DEMO_KEY = "AIzaSyDd19AHP6cciyErg-bky3u07fXVGnXaraE"
 DEFAULT_MODEL = "models/gemini-2.5-flash"
@@ -97,17 +134,15 @@ GEMINI_API_KEY = (
     or _secret_get("GEMINI_API_KEY_DEMO", None)
     or DEFAULT_DEMO_KEY
 )
-
 GEMINI_MODEL = (
     os.environ.get("GEMINI_MODEL")
     or _secret_get("GEMINI_MODEL", None)
     or DEFAULT_MODEL
 )
-
 GEMINI_ENDPOINT = f"https://generativelanguage.googleapis.com/v1beta/{GEMINI_MODEL}:generateContent"
 
 # -----------------------------
-# Utility functions
+# Utility
 # -----------------------------
 def _load_index() -> dict:
     if INDEX_PATH.exists():
@@ -158,7 +193,6 @@ def _sanitize_plain(text: str) -> str:
 # Data loading helpers (persist upload + robust schema)
 # -----------------------------
 def _saved_file_path() -> Path | None:
-    # Cari file tersimpan apapun ekstensinya
     for ext in (".csv", ".xlsx", ".xls", ".parquet"):
         p = SAVED_PATH.with_suffix(ext)
         if p.exists():
@@ -166,27 +200,20 @@ def _saved_file_path() -> Path | None:
     return None
 
 def _save_uploaded(file: "UploadedFile") -> Path:
-    # Simpan sesuai ekstensi asli
     suffix = Path(file.name).suffix.lower()
     dst = SAVED_PATH.with_suffix(suffix if suffix in [".csv", ".xlsx", ".xls", ".parquet"] else ".csv")
-    bytes_data = file.getvalue()
-    dst.write_bytes(bytes_data)
+    dst.write_bytes(file.getvalue())
     return dst
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Samakan nama kolom ke schema pipeline dan buang kolom index otomatis."""
     new_cols = []
     for c in df.columns:
         s = str(c).strip()
         norm = re.sub(r'[\s\.\-]+', '', s).lower()
-
         new = None
-        if norm == 'id':
-            new = 'ID'
-        elif norm in ('limitbal', 'limitbalance', 'limitamount', 'limit'):
-            new = 'LIMIT_BAL'
-        elif norm in ('defaultpaymentnextmonth', 'defaultpayment'):
-            new = 'default.payment.next.month'
+        if norm == 'id': new = 'ID'
+        elif norm in ('limitbal','limitbalance','limitamount','limit'): new = 'LIMIT_BAL'
+        elif norm in ('defaultpaymentnextmonth','defaultpayment'): new = 'default.payment.next.month'
         else:
             m = re.fullmatch(r'pay([0-6])', norm)
             if m: new = f'PAY_{m.group(1)}'
@@ -196,55 +223,36 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
             if not new:
                 m = re.fullmatch(r'payamt([1-6])', norm)
                 if m: new = f'PAY_AMT{m.group(1)}'
-
         new_cols.append(new if new else s)
-
     df = df.rename(columns=dict(zip(df.columns, new_cols)))
     drop_unnamed = [c for c in df.columns if str(c).startswith("Unnamed")]
-    if drop_unnamed:
-        df = df.drop(columns=drop_unnamed)
+    if drop_unnamed: df = df.drop(columns=drop_unnamed)
     return df
 
 def _read_file_any(path: Path) -> pd.DataFrame:
     suf = path.suffix.lower()
     if suf == '.csv':
-        try:
-            df = pd.read_csv(path)
-        except Exception:
-            df = pd.read_csv(path, sep=';')
+        try: df = pd.read_csv(path)
+        except Exception: df = pd.read_csv(path, sep=';')
         return _normalize_columns(df)
-
-    if suf in ('.xlsx', '.xls'):
-        # coba header=0 lalu header=1 (khusus UCI default xls biasanya header=1)
-        for hdr in (0, 1):
+    if suf in ('.xlsx','.xls'):
+        for hdr in (0,1):
             try:
                 df = pd.read_excel(path, header=hdr)
                 df = _normalize_columns(df)
-                if {'ID', 'LIMIT_BAL'}.issubset(df.columns):
-                    return df
-            except Exception:
-                pass
+                if {'ID','LIMIT_BAL'}.issubset(df.columns): return df
+            except Exception: pass
         df = pd.read_excel(path, header=0)
         return _normalize_columns(df)
-
     if suf == '.parquet':
-        df = pd.read_parquet(path)
-        return _normalize_columns(df)
-
+        return _normalize_columns(pd.read_parquet(path))
     raise ValueError(f"Tipe file tidak didukung: {suf}")
 
 @st.cache_data(show_spinner=False)
 def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
-    """
-    Prioritas:
-    1) file tersimpan (upload terakhir),
-    2) sampel bawaan repo.
-    """
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
         return _read_file_any(saved_path)
-
-    # fallback: cari file sampel di repo (opsional)
     candidates = [
         APP_DIR / "data" / "UCI_Credit_Card.csv",
         APP_DIR / "UCI_Credit_Card.csv",
@@ -252,9 +260,7 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
         APP_DIR / "default of credit card clients.xls",
     ]
     for p in candidates:
-        if p.exists():
-            return _read_file_any(p)
-
+        if p.exists(): return _read_file_any(p)
     raise FileNotFoundError("Tidak ada data tersimpan maupun sampel bawaan. Silakan unggah file.")
 
 # -----------------------------
@@ -426,7 +432,7 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
     ctx_json = json.dumps(ctx, ensure_ascii=False)
     return textwrap.dedent(f"""
     Anda adalah analis hukum internal untuk Indonesia.
-    Tulis satu paragraf naratif yang langsung ke inti tanpa heading, tanpa bullet, dan tanpa simbol khusus seperti # * - — : ;.
+    Tulis satu paragraf naratif yang langsung ke inti tanpa heading, tanpa bullet, dan tanpa simbol khusus seperti # * - — , ; :.
     Gunakan 7 sampai 12 kalimat, Bahasa Indonesia formal, ringkas dan jelas.
     Sebutkan jenis fasilitas secara eksplisit sebagai "limit kredit aktif (LIMIT_BAL)" saat menyebut besaran limit.
     Fokus pada ranah perdata/kontrak/perjanjian, jelaskan fakta pembayaran, indikasi wanprestasi, posisi hak dan kewajiban para pihak, opsi penanganan yang layak seperti somasi atau restruktur ringan, serta pentingnya dokumentasi bukti.
@@ -442,8 +448,8 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
 def _build_prompt_step2(draft1_text: str) -> str:
     canon = json.dumps(ALLOWED_PASAL, ensure_ascii=False, indent=2)
     return textwrap.dedent(f"""
-        Anda melanjutkan draf naratif berikut dari Tahap 1.
-    Hasil akhir harus berupa satu paragraf natural, tanpa heading, tanpa daftar, dan tanpa simbol # * - — : ;.
+    Anda melanjutkan draf naratif berikut dari Tahap 1.
+    Hasil akhir harus berupa satu paragraf natural, tanpa heading, tanpa daftar, dan tanpa simbol # * - — , ; :.
     Masukkan rujukan pasal HANYA dari daftar kanonik di bawah ini, ditulis natural di dalam kalimat (misal: berdasarkan KUHPerdata Pasal 1238).
     Tegaskan apa yang boleh dilakukan tim collection bila debitur tetap mengelak atau menolak membayar:
     somasi lanjutan, gugatan perdata untuk pemenuhan perikatan atau ganti rugi, serta eksekusi jaminan/penarikan barang
@@ -452,12 +458,12 @@ def _build_prompt_step2(draft1_text: str) -> str:
     Tambahkan satu kalimat yang menyatakan bahwa tim collection diizinkan melakukan dokumentasi seluruh tahapan penagihan untuk bukti bahwa tata cara telah dilakukan secara prosedural.
     Hindari tindakan sepihak yang bertentangan dengan hukum, termasuk kekerasan atau ancaman, dan tekankan kepatuhan pada aturan perlindungan konsumen yang berlaku.
 
-        Daftar kanonik pasal yang boleh dirujuk:
-        {canon}
+    Daftar kanonik pasal yang boleh dirujuk:
+    {canon}
 
-        Draf Tahap 1:
-        {draft1_text}
-        """)
+    Draf Tahap 1:
+    {draft1_text}
+    """)
 
 def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     sig = _insight_signature(id_val, insight_text)
@@ -465,10 +471,8 @@ def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Ser
     if str(id_val) in idx and idx[str(id_val)].get("sig") == sig:
         p = Path(idx[str(id_val)]["path"])
         if p.exists():
-            try:
-                return p.read_text(encoding="utf-8")
-            except Exception:
-                pass
+            try: return p.read_text(encoding="utf-8")
+            except Exception: pass
     try:
         draft1 = _call_gemini(_build_prompt_step1(id_val, row_raw, row_skor, insight_text))
         final  = _call_gemini(_build_prompt_step2(draft1))
@@ -505,14 +509,11 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
             ws.write(3,0,"Total Baris", fmt_label);     ws.write(3,1, total_baris, fmt_text)
             ws.write(4,0,"Kategori", fmt_label);        ws.write(4,1, kategori, fmt_text)
             start_row = 7
-            # header
             for j, col in enumerate(df_data.columns):
                 ws.write(start_row, j, col, fmt_th)
-            # rows
             for i in range(len(df_data)):
                 for j, col in enumerate(df_data.columns):
                     ws.write(start_row+1+i, j, df_data.iloc[i, j], fmt_cell)
-            # autosize
             for j, col in enumerate(df_data.columns):
                 width = min(max(10, int(df_data[col].astype(str).map(len).quantile(0.90))+2), 40)
                 ws.set_column(j, j, width)
@@ -527,25 +528,21 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
             "default.payment.next.month": "Default payment next month",
         }
 
-        # All
         write_sheet_with_header(
             "All",
             top_prior_all[cols_for_display].rename(columns=col_display_names),
             "Status: Priorities EDRS (All Buckets, sorted)"
         )
-        # Top Very High
         write_sheet_with_header(
             "Top_Very_High",
             top_prior_all[top_prior_all["bucket"]=="Very High"].head(200)[cols_for_display].rename(columns=col_display_names),
             "Status: Top Very High"
         )
-        # Top High
         write_sheet_with_header(
             "Top_High",
             top_prior_all[top_prior_all["bucket"]=="High"].head(200)[cols_for_display].rename(columns=col_display_names),
             "Status: Top High"
         )
-        # Summary
         summ_df = (top_prior_all.groupby("bucket")
                    .agg(n=("ID","count"),
                         avg_score=("edrs_score","mean"),
@@ -562,30 +559,55 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     return buf.read()
 
 # -----------------------------
-# UI — Sidebar (lebih clean)
+# UI — Sidebar + Mobile fallback
 # -----------------------------
 st.sidebar.header("Pengaturan")
 
-# Uploader saja (tanpa input folder)
-uploaded = st.sidebar.file_uploader("Unggah data (CSV / XLS/XLSX)", type=["csv","xls","xlsx","parquet"])
-
-# Simpan file yg baru diunggah agar jadi default
-if uploaded is not None:
-    dst = _save_uploaded(uploaded)
+uploaded_sb = st.sidebar.file_uploader(
+    "Unggah data (CSV / XLS/XLSX/Parquet)", type=["csv","xls","xlsx","parquet"], key="uploaded_sb"
+)
+if uploaded_sb is not None:
+    dst = _save_uploaded(uploaded_sb)
     st.sidebar.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
-    # Bersihkan cache dan rerun agar data baru langsung aktif
     st.cache_data.clear()
     st.rerun()
 
-# Info sumber data yang sedang dipakai
 _saved = _saved_file_path()
 if _saved:
     st.sidebar.caption(f"📄 Data aktif: **{_saved.name}** (tersimpan)")
 else:
     st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
 
-top_n = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1)
-show_bucket_only = st.sidebar.multiselect("Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"])
+top_n_sb = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1, key="top_n_sb")
+buckets_sb = st.sidebar.multiselect(
+    "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"], key="buckets_sb"
+)
+
+# === Mobile-friendly controls (fallback bila sidebar tertutup) ===
+with st.expander("⚙️ Pengaturan (Mobile Friendly)", expanded=False):
+    st.caption("Gunakan panel ini di layar kecil jika sidebar tertutup.")
+    uploaded_m = st.file_uploader(
+        "Unggah data (CSV / XLS/XLSX/Parquet)", type=["csv","xls","xlsx","parquet"], key="uploaded_m"
+    )
+    if uploaded_m is not None:
+        dst = _save_uploaded(uploaded_m)
+        st.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
+        st.cache_data.clear()
+        st.rerun()
+
+    top_n_m = st.number_input(
+        "Top N prioritas (Mobile)", min_value=1, value=int(st.session_state.get("top_n_sb", 20)), step=1, key="top_n_m"
+    )
+    buckets_m = st.multiselect(
+        "Filter bucket (Mobile)",
+        ["Very High","High","Med","Low","Very Low"],
+        default=st.session_state.get("buckets_sb", ["Very High","High"]),
+        key="buckets_m"
+    )
+
+# Ambil nilai final: prioritas pakai input Mobile jika diisi, selain itu pakai Sidebar
+top_n = int(st.session_state.get("top_n_m") or st.session_state.get("top_n_sb") or 20)
+show_bucket_only = st.session_state.get("buckets_m") or st.session_state.get("buckets_sb") or ["Very High","High"]
 
 # -----------------------------
 # Load + compute
@@ -594,7 +616,6 @@ try:
     raw_df = load_data("saved-first", str(_saved) if _saved else "")
     base_df, out, top_prior, top_prior_all = compute_features(raw_df.copy())
 
-    # kolom display
     cols_for_display = [
         "ID","LIMIT_BAL","edrs_score","bucket","next_best_action",
         "count_telat_3m","count_telat_6m","max_tunggakan_6m",
@@ -604,9 +625,7 @@ try:
     st.title("EDRS — Early Delinquency Risk Score")
     st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
 
-    # -------------------------
     # Top Prioritas
-    # -------------------------
     st.subheader("Top Prioritas Very High atau High")
     df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n)).reset_index(drop=True)
     st.dataframe(df_show[cols_for_display], use_container_width=True, hide_index=True)
@@ -614,11 +633,13 @@ try:
     # Download Excel
     with st.spinner("Menyiapkan Excel…"):
         excel_bytes = build_excel(top_prior_all, cols_for_display)
-    st.download_button("⬇️ Unduh Excel report", data=excel_bytes, file_name="priorities_edrs_report.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    st.download_button(
+        "⬇️ Unduh Excel report", data=excel_bytes,
+        file_name="priorities_edrs_report.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-    # -------------------------
     # Viewer per-ID
-    # -------------------------
     st.markdown("---")
     st.subheader("Viewer Interaktif — Masukkan ID untuk melihat detail")
 
@@ -626,7 +647,6 @@ try:
     default_id = int(df_show["ID"].iloc[0]) if len(df_show)>0 else int(out.iloc[0]["ID"])
     id_value = st.number_input("Cari ID", min_value=id_min, max_value=id_max, value=default_id, step=1)
 
-    # ambil baris
     row_raw  = base_df[base_df["ID"]==id_value]
     row_skor = out[out["ID"]==id_value]
     if row_raw.empty or row_skor.empty:
@@ -635,13 +655,11 @@ try:
         row_raw  = row_raw.iloc[0]
         row_skor = row_skor.iloc[0]
 
-        # meta
         meta_cols_display = [c for c in ["ID","LIMIT_BAL","SEX","EDUCATION","MARRIAGE","AGE"] if c in base_df.columns]
         meta_df = pd.DataFrame({**row_raw[meta_cols_display].to_dict(),
                                 **row_skor[["edrs_score","bucket","next_best_action"]].to_dict()}, index=[0])
         st.dataframe(meta_df, use_container_width=True, hide_index=True)
 
-        # PAY_* / BILL / PAY AMT
         pay_cols = [c for c in [f"PAY_{i}" for i in [0,1,2,3,4,5,6]] if c in base_df.columns]
         bill_cols = [c for c in [f"BILL_AMT{i}" for i in range(1,7)] if c in base_df.columns]
         pmt_cols  = [c for c in [f"PAY_AMT{i}"  for i in range(1,7)] if c in base_df.columns]
@@ -656,7 +674,6 @@ try:
             st.markdown("#### PAY AMT 1 sampai 6 (pembayaran 6 bulan)")
             st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), use_container_width=True, hide_index=True)
 
-        # Ringkasan rules
         st.markdown("#### Ringkasan Rules")
         rules_df = pd.DataFrame([{
             "Count telat 3m": int(row_skor["count_telat_3m"]),
@@ -669,19 +686,16 @@ try:
         }])
         st.dataframe(rules_df, use_container_width=True, hide_index=True)
 
-        # Label target (jika ada)
         if "default.payment.next.month" in row_skor:
             st.markdown("#### Label Target")
             st.dataframe(pd.DataFrame({"Default payment next month":[row_skor["default.payment.next.month"]]}),
                          use_container_width=True, hide_index=True)
 
-        # Insight
         st.markdown("#### Insight")
         limit_pct = base_df["LIMIT_BAL"].rank(pct=True); limit_pct.index = base_df["ID"].values
         insight_text = generate_insight(row_raw, row_skor, limit_pct)
         st.markdown(f"<div class='legal-text'>{insight_text}</div>", unsafe_allow_html=True)
 
-        # Kesimpulan (LLM/fallback)
         st.markdown("#### Kesimpulan")
         with st.spinner("Menyusun narasi…"):
             kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
