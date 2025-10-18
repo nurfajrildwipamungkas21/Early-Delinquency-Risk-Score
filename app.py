@@ -17,13 +17,15 @@ st.set_page_config(
 )
 
 # Fonts & Material Icons
+# Only load the Inter font.  Streamlit already loads its own icon fonts,
+# so including additional Material icons can cause fallback text (e.g.,
+# "keyboard_double_arrow_right") to appear on some devices when the font
+# fails to load.  By omitting the Material icon imports, we allow
+# Streamlit’s bundled fonts to handle icons correctly.
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Icons&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Icons-OutLined&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 """
 
 # CSS for responsiveness and to hide collapsed sidebar arrow
@@ -33,16 +35,8 @@ GLOBAL_CSS = f"""{font_link}
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
 }}
-.material-icons,
-.material-icons-outlined,
-.material-symbols-outlined {{
-  font-family: 'Material Icons','Material Icons Outlined','Material Symbols Outlined' !important;
-  font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}}
 html, body,
-[data-testid="stAppViewContainer"] *:not(.material-icons):not(.material-icons-outlined):not(.material-symbols-outlined) {{
+[data-testid="stAppViewContainer"] * {{
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -61,18 +55,18 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
   min-width:290px; width:290px;
 }}
 /*
-  Hide the sidebar collapse control completely.
-  Streamlit uses a small clickable element to collapse/expand the sidebar.  
-  When the icon font fails to load (common on some mobile browsers) it displays
-  the literal icon name (for example "keyboard_double_arrow_right").  To avoid
-  this behaviour on any device, we hide the control entirely.  
-  The test ID changed from `collapsed-control` (kebab-case) to
-  `collapsedControl` (camelCase) in different Streamlit releases, so both are
-  targeted here.  The `!important` flag ensures the rule overrides built-in
-  styling.  
+  Completely hide the sidebar collapse control and all its child elements.  
+  This prevents fallback text such as “keyboard_double_arrow_right” from
+  appearing when Material icon fonts fail to load on certain devices.
+  The collapse control has changed its data-testid in different Streamlit
+  versions, so we target both camelCase and kebab-case.  We select only
+  <div> elements to avoid accidental matches on other widgets.  The nested
+  selectors ensure child elements are also hidden.
 */
-[data-testid="collapsedControl"],
-[data-testid="collapsed-control"] {{
+div[data-testid="collapsedControl"],
+div[data-testid="collapsedControl"] *,
+div[data-testid="collapsed-control"],
+div[data-testid="collapsed-control"] * {{
   display: none !important;
 }}
 </style>
