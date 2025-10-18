@@ -1,5 +1,4 @@
-# app.py — EDRS Streamlit (Rule-based) — polished for all devices
-
+# app.py — EDRS Streamlit (Rule-based) — final unified layout
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -18,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# CDN fonts: Inter for body, Material Icons & Symbols for icons
+# Fonts & Material Icons
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,14 +27,13 @@ font_link = """
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 """
 
-# Global CSS: font settings, responsive tweaks, hide collapsed sidebar arrow
+# CSS for responsiveness and to hide collapsed sidebar arrow
 GLOBAL_CSS = f"""{font_link}
 <style>
 :root {{
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
 }}
-/* Ensure Material icons render properly */
 .material-icons,
 .material-icons-outlined,
 .material-symbols-outlined {{
@@ -44,7 +42,6 @@ GLOBAL_CSS = f"""{font_link}
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }}
-/* Apply body font everywhere except on icon elements */
 html, body,
 [data-testid="stAppViewContainer"] *:not(.material-icons):not(.material-icons-outlined):not(.material-symbols-outlined) {{
   font-family: var(--font-body);
@@ -54,8 +51,6 @@ html, body,
 h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 .legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
 .small-note {{ color:#57606a; font-size:12px; }}
-
-/* Responsive adjustments for mobile */
 @media (max-width: 640px) {{
   :root {{ --fs-base: 13px; }}
   h1 {{ font-size:1.55rem !important; }}
@@ -63,13 +58,10 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
   .block-container {{ padding-top:1rem !important; padding-bottom:2rem !important; }}
   .stDownloadButton {{ width:100% !important; }}
 }}
-
-/* Make sidebar width consistent on desktop */
 [data-testid="stSidebar"] {{
   min-width:290px; width:290px;
 }}
-
-/* Hide collapsed sidebar control (prevents keyboard_double_arrow_right text) */
+/* Hide collapsed-control to remove 'keyboard_double_arrow_right' text */
 [data-testid="collapsed-control"] {{
   display:none !important;
 }}
@@ -88,7 +80,6 @@ APP_DIR = Path(__file__).parent
 UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
 SAVED_PATH = UPLOADED_DIR / "latest_data"
 
-# Allowed legal articles for Gemini
 ALLOWED_PASAL = {
     "Perikatan/Wanprestasi": [
         "KUHPerdata Pasal 1238 (debitur dinyatakan lalai)",
@@ -108,7 +99,6 @@ ALLOWED_PASAL = {
     ]
 }
 
-# Gemini settings
 DEFAULT_DEMO_KEY = "AIzaSyDd19AHP6cciyErg-bky3u07fXVGnXaraE"
 DEFAULT_MODEL = "models/gemini-2.5-flash"
 
@@ -179,7 +169,7 @@ def _sanitize_plain(text: str) -> str:
     return t.strip()
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Data loading helpers (persist upload + robust schema)
+# Data loading helpers
 # ────────────────────────────────────────────────────────────────────────────────
 def _saved_file_path() -> Path | None:
     """Return saved data file if exists."""
@@ -246,7 +236,6 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
         return _read_file_any(saved_path)
-    # look for sample data in project folder
     candidates = [
         APP_DIR / "data" / "UCI_Credit_Card.csv",
         APP_DIR / "UCI_Credit_Card.csv",
@@ -410,6 +399,7 @@ def _fallback_conclusion(row_raw: pd.Series, row_skor: pd.Series) -> str:
     garis.append("Izinkan tim collection melakukan dokumentasi seluruh tahapan penagihan sebagai bukti bahwa tata cara telah dilakukan secara prosedural serta simpan seluruh komunikasi tagihan dan pembayaran secara lengkap.")
     return " ".join(garis)
 
+# Build Gemini prompts
 def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     ctx = {
         "ID": int(row_raw.get("ID")),
@@ -482,11 +472,83 @@ def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Ser
         pass
     return text
 
-# Excel export remains unchanged (build_excel function defined earlier)
+# ────────────────────────────────────────────────────────────────────────────────
+# Excel export
+# ────────────────────────────────────────────────────────────────────────────────
+def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
+    """Build Excel file with multiple sheets and summary."""
+    buf = io.BytesIO()
+    now_str     = datetime.now().strftime("%d %B %Y, %H:%M WIB")
+    kategori    = "Prioritas Koleksi — EDRS (Rule-based)"
+    total_baris = len(top_prior_all)
 
-# -----------------------------
+    with pd.ExcelWriter(buf, engine="xlsxwriter") as xlw:
+        wb = xlw.book
+
+        def write_sheet_with_header(sheet_name, df_data, title):
+            ws = wb.add_worksheet(sheet_name)
+            fmt_title = wb.add_format({"bold":True,"font_name":"Calibri","font_size":14,"bg_color":"#C6E0B4","align":"left","valign":"vcenter"})
+            fmt_label = wb.add_format({"bold":True,"font_name":"Calibri","bg_color":"#F2F2F2"})
+            fmt_text  = wb.add_format({"font_name":"Calibri","font_size":11})
+            fmt_th    = wb.add_format({"bold":True,"font_name":"Calibri","bg_color":"#F2F2F2","border":1})
+            fmt_cell  = wb.add_format({"font_name":"Calibri","font_size":11,"border":1})
+            ws.merge_range(0,0,0,4, title, fmt_title)
+            ws.write(2,0,"Tanggal Laporan", fmt_label); ws.write(2,1, now_str, fmt_text)
+            ws.write(3,0,"Total Baris", fmt_label);     ws.write(3,1, total_baris, fmt_text)
+            ws.write(4,0,"Kategori", fmt_label);        ws.write(4,1, kategori, fmt_text)
+            start_row = 7
+            for j, col in enumerate(df_data.columns):
+                ws.write(start_row, j, col, fmt_th)
+            for i in range(len(df_data)):
+                for j, col in enumerate(df_data.columns):
+                    ws.write(start_row+1+i, j, df_data.iloc[i, j], fmt_cell)
+            for j, col in enumerate(df_data.columns):
+                width = min(max(10, int(df_data[col].astype(str).map(len).quantile(0.90))+2), 40)
+                ws.set_column(j, j, width)
+            ws.freeze_panes(start_row+1, 0)
+
+        col_display_names = {
+            "ID": "ID", "LIMIT_BAL": "LIMIT BAL", "edrs_score": "EDRS score", "bucket": "Bucket",
+            "next_best_action": "Next best action", "count_telat_3m": "Count telat 3m",
+            "count_telat_6m": "Count telat 6m", "max_tunggakan_6m": "Max tunggakan 6m",
+            "ratio_bayar_last": "Ratio bayar last", "bill_trend_up": "Bill trend up",
+            "dpd_proxy_now": "DPD proxy now", "streak_telat2plus": "Streak telat 2+",
+            "default.payment.next.month": "Default payment next month",
+        }
+
+        write_sheet_with_header(
+            "All",
+            top_prior_all[cols_for_display].rename(columns=col_display_names),
+            "Status: Priorities EDRS (All Buckets, sorted)"
+        )
+        write_sheet_with_header(
+            "Top_Very_High",
+            top_prior_all[top_prior_all["bucket"]=="Very High"].head(200)[cols_for_display].rename(columns=col_display_names),
+            "Status: Top Very High"
+        )
+        write_sheet_with_header(
+            "Top_High",
+            top_prior_all[top_prior_all["bucket"]=="High"].head(200)[cols_for_display].rename(columns=col_display_names),
+            "Status: Top High"
+        )
+        summ_df = (top_prior_all.groupby("bucket")
+                   .agg(n=("ID","count"),
+                        avg_score=("edrs_score","mean"),
+                        pay_ratio_lt_0_7=("ratio_bayar_last", lambda s: float((s<0.7).mean())),
+                        dpd_now=("dpd_proxy_now","mean"))
+                   .sort_index(ascending=False).reset_index())
+        summ_df = summ_df.rename(columns={
+            "bucket":"Bucket","n":"Jumlah nasabah","avg_score":"Rata-rata skor",
+            "pay_ratio_lt_0_7":"Proporsi bayar <70%","dpd_now":"Proporsi DPD proxy"
+        })
+        write_sheet_with_header("Summary", summ_df, "Status: Ringkasan Bucket")
+
+    buf.seek(0)
+    return buf.read()
+
+# ────────────────────────────────────────────────────────────────────────────────
 # UI — Sidebar controls
-# -----------------------------
+# ────────────────────────────────────────────────────────────────────────────────
 st.sidebar.header("Pengaturan")
 
 uploaded_sb = st.sidebar.file_uploader(
@@ -504,14 +566,13 @@ if _saved:
 else:
     st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
 
-top_n = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1)
 show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
 
-# -----------------------------
+# ────────────────────────────────────────────────────────────────────────────────
 # Load + compute and render
-# -----------------------------
+# ────────────────────────────────────────────────────────────────────────────────
 try:
     raw_df = load_data("saved-first", str(_saved) if _saved else "")
     base_df, out, top_prior, top_prior_all = compute_features(raw_df.copy())
@@ -525,9 +586,12 @@ try:
     st.title("EDRS — Early Delinquency Risk Score")
     st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
 
-    # Top Prioritas
-    st.subheader("Top Prioritas Very High atau High")
-    df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n)).reset_index(drop=True)
+    # Top Prioritas with Top N input inline
+    col_header, col_topn = st.columns([4,1])
+    col_header.subheader("Top Prioritas Very High atau High")
+    top_n_inline = col_topn.number_input("Top N", min_value=1, value=20, step=1)
+
+    df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n_inline)).reset_index(drop=True)
     st.dataframe(df_show[cols_for_display], use_container_width=True, hide_index=True)
 
     # Download Excel
