@@ -1,4 +1,3 @@
-# app.py — EDRS Streamlit (Rule-based) — final unified layout
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -23,7 +22,7 @@ font_link = """
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Icons&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Icons+Outlined&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Icons-OutLined&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 """
 
@@ -61,9 +60,20 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 [data-testid="stSidebar"] {{
   min-width:290px; width:290px;
 }}
-/* Hide collapsed-control to remove 'keyboard_double_arrow_right' text */
+/*
+  Hide the sidebar collapse control completely.
+  Streamlit uses a small clickable element to collapse/expand the sidebar.  
+  When the icon font fails to load (common on some mobile browsers) it displays
+  the literal icon name (for example "keyboard_double_arrow_right").  To avoid
+  this behaviour on any device, we hide the control entirely.  
+  The test ID changed from `collapsed-control` (kebab-case) to
+  `collapsedControl` (camelCase) in different Streamlit releases, so both are
+  targeted here.  The `!important` flag ensures the rule overrides built-in
+  styling.  
+*/
+[data-testid="collapsedControl"],
 [data-testid="collapsed-control"] {{
-  display:none !important;
+  display: none !important;
 }}
 </style>
 """
@@ -639,7 +649,7 @@ try:
             st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), use_container_width=True, hide_index=True)
 
         st.markdown("#### Ringkasan Rules")
-        rules_df = pd.DataFrame([{
+        rules_df = pd.DataFrame([{ 
             "Count telat 3m": int(row_skor["count_telat_3m"]),
             "Count telat 6m": int(row_skor["count_telat_6m"]),
             "Max tunggakan 6m": int(row_skor["max_tunggakan_6m"]),
