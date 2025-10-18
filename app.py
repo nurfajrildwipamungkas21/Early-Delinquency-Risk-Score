@@ -1,5 +1,4 @@
 # app.py — EDRS Streamlit (Rule-based) — dynamic + polished narrative
-
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -18,6 +17,10 @@ font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Pastikan font ikon Material tetap tersedia agar tidak tampil sebagai teks -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Icons&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Icons+Outlined&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 """ if USE_CDN_FONT else ""
 
 GLOBAL_CSS = f"""{font_link}
@@ -26,7 +29,15 @@ GLOBAL_CSS = f"""{font_link}
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
 }}
-html, body, [data-testid="stAppViewContainer"] * {{
+/* Jangan override font untuk ikon Material supaya tidak muncul teks 'keyboard_double_arrow_right' */
+.material-icons,
+.material-icons-outlined,
+.material-symbols-outlined {{
+  font-family: 'Material Symbols Outlined','Material Icons','Material Icons Outlined' !important;
+  font-weight: normal; font-style: normal; line-height: 1;
+}}
+/* Terapkan font body ke elemen umum, kecuali ikon */
+html, body, [data-testid="stAppViewContainer"] *:not(.material-icons):not(.material-icons-outlined):not(.material-symbols-outlined) {{
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -44,6 +55,11 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 PROMPT_VERSION = "v5-assertive-collateral"
 CACHE_DIR = Path("./legal_conclusions"); CACHE_DIR.mkdir(parents=True, exist_ok=True)
 INDEX_PATH = CACHE_DIR / "index.json"
+
+# Persist lokasi file upload agar jadi default
+APP_DIR = Path(__file__).parent
+UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
+SAVED_PATH = UPLOADED_DIR / "latest_data"  # akan diberi ekstensi sesuai file yang disimpan
 
 ALLOWED_PASAL = {
     "Perikatan/Wanprestasi": [
@@ -72,7 +88,6 @@ DEFAULT_MODEL = "models/gemini-2.5-flash"
 
 def _secret_get(key: str, default: str | None = None):
     try:
-        # Menghindari FileNotFoundError saat tidak ada secrets.toml
         return st.secrets[key]
     except Exception:
         return default
@@ -140,28 +155,66 @@ def _sanitize_plain(text: str) -> str:
     return t.strip()
 
 # -----------------------------
+# Data loading (persist upload)
+# -----------------------------
+def _saved_file_path() -> Path | None:
+    # Cari file tersimpan apapun ekstensinya
+    for ext in (".csv", ".xlsx", ".xls", ".parquet"):
+        p = SAVED_PATH.with_suffix(ext)
+        if p.exists():
+            return p
+    return None
+
+def _save_uploaded(file: "UploadedFile") -> Path:
+    # Simpan sesuai ekstensi asli
+    suffix = Path(file.name).suffix.lower()
+    dst = SAVED_PATH.with_suffix(suffix if suffix in [".csv",".xlsx",".xls",".parquet"] else ".csv")
+    bytes_data = file.getvalue()
+    dst.write_bytes(bytes_data)
+    return dst
+
+@st.cache_data(show_spinner=False)
+def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
+    """
+    Prioritas:
+    1) saved_path (jika ada),
+    2) sampel bawaan repo (jika ada),
+    3) raise error.
+    'source_hint' dan 'saved_path_str' dipakai sebagai key cache.
+    """
+    saved_path = Path(saved_path_str) if saved_path_str else None
+    if saved_path and saved_path.exists():
+        if saved_path.suffix.lower() == ".csv":
+            return pd.read_csv(saved_path)
+        elif saved_path.suffix.lower() in [".xlsx", ".xls"]:
+            df = pd.read_excel(saved_path, header=1 if "default of credit card clients" in str(saved_path).lower() else 0)
+            # samakan nama kolom target bila ada
+            df = df.rename(columns={"default payment next month": "default.payment.next.month"})
+            return df
+        elif saved_path.suffix.lower() == ".parquet":
+            return pd.read_parquet(saved_path)
+
+    # fallback: cari file sampel di repo (opsional)
+    candidates = [
+        APP_DIR / "data" / "UCI_Credit_Card.csv",
+        APP_DIR / "UCI_Credit_Card.csv",
+        APP_DIR / "data" / "default of credit card clients.xls",
+        APP_DIR / "default of credit card clients.xls",
+    ]
+    for p in candidates:
+        if p.exists():
+            if p.suffix.lower()==".csv":
+                return pd.read_csv(p)
+            else:
+                df = pd.read_excel(p, header=1)
+                df = df.rename(columns={"default payment next month": "default.payment.next.month"})
+                return df
+
+    raise FileNotFoundError("Tidak ada data tersimpan maupun sampel bawaan. Silakan unggah file.")
+
+# -----------------------------
 # Core EDRS pipeline
 # -----------------------------
-@st.cache_data(show_spinner=False)
-def load_data(default_dir: Path, uploaded_file) -> pd.DataFrame:
-    if uploaded_file is not None:
-        if uploaded_file.name.lower().endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file, header=1)
-            df = df.rename(columns={"default payment next month": "default.payment.next.month"})
-        return df
-
-    p_xls = default_dir / "default of credit card clients.xls"
-    p_csv = default_dir / "UCI_Credit_Card.csv"
-    if p_xls.exists():
-        df = pd.read_excel(p_xls, header=1)
-        df = df.rename(columns={"default payment next month": "default.payment.next.month"})
-        return df
-    if p_csv.exists():
-        return pd.read_csv(p_csv)
-    raise FileNotFoundError(f"Tidak menemukan file di {default_dir}")
-
 def compute_features(df: pd.DataFrame):
     must_have = ["ID", "LIMIT_BAL", "default.payment.next.month"]
     for c in must_have:
@@ -464,11 +517,27 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     return buf.read()
 
 # -----------------------------
-# UI — Sidebar
+# UI — Sidebar (lebih clean)
 # -----------------------------
 st.sidebar.header("Pengaturan")
-data_dir = Path(st.sidebar.text_input("Folder data (default):", r"C:\commercial_project\data"))
-uploaded = st.sidebar.file_uploader("Atau unggah file data (CSV / XLS)", type=["csv","xls","xlsx"])
+
+# Uploader saja (tanpa input folder)
+uploaded = st.sidebar.file_uploader("Unggah data (CSV / XLS/XLSX)", type=["csv","xls","xlsx","parquet"])
+
+# Simpan file yg baru diunggah agar jadi default
+if uploaded is not None:
+    dst = _save_uploaded(uploaded)
+    st.sidebar.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
+    # Bersihkan cache data supaya re-load
+    st.cache_data.clear()
+
+# Info sumber data yang sedang dipakai
+_saved = _saved_file_path()
+if _saved:
+    st.sidebar.caption(f"📄 Data aktif: **{_saved.name}** (tersimpan)")
+else:
+    st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
+
 top_n = st.sidebar.number_input("Top N prioritas", min_value=1, value=20, step=1)
 show_bucket_only = st.sidebar.multiselect("Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"])
 
@@ -476,7 +545,7 @@ show_bucket_only = st.sidebar.multiselect("Filter bucket", ["Very High","High","
 # Load + compute
 # -----------------------------
 try:
-    raw_df = load_data(data_dir, uploaded)
+    raw_df = load_data("saved-first", str(_saved) if _saved else "")
     base_df, out, top_prior, top_prior_all = compute_features(raw_df.copy())
 
     # kolom display
@@ -493,8 +562,8 @@ try:
     # Top Prioritas
     # -------------------------
     st.subheader("Top Prioritas Very High atau High")
-    df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n))
-    st.dataframe(df_show[cols_for_display], use_container_width=True)
+    df_show = top_prior[top_prior["bucket"].isin(show_bucket_only)].head(int(top_n)).reset_index(drop=True)
+    st.dataframe(df_show[cols_for_display], use_container_width=True, hide_index=True)
 
     # Download Excel
     with st.spinner("Menyiapkan Excel…"):
@@ -524,7 +593,7 @@ try:
         meta_cols_display = [c for c in ["ID","LIMIT_BAL","SEX","EDUCATION","MARRIAGE","AGE"] if c in base_df.columns]
         meta_df = pd.DataFrame({**row_raw[meta_cols_display].to_dict(),
                                 **row_skor[["edrs_score","bucket","next_best_action"]].to_dict()}, index=[0])
-        st.dataframe(meta_df, use_container_width=True)
+        st.dataframe(meta_df, use_container_width=True, hide_index=True)
 
         # PAY_* / BILL / PAY AMT
         pay_cols = [c for c in [f"PAY_{i}" for i in [0,1,2,3,4,5,6]] if c in base_df.columns]
@@ -533,13 +602,13 @@ try:
 
         if pay_cols:
             st.markdown("#### PAY status keterlambatan per bulan")
-            st.dataframe(pd.DataFrame([row_raw[pay_cols]], columns=pay_cols), use_container_width=True)
+            st.dataframe(pd.DataFrame([row_raw[pay_cols]], columns=pay_cols), use_container_width=True, hide_index=True)
         if bill_cols:
             st.markdown("#### BILL AMT 1 sampai 6 (tagihan 6 bulan)")
-            st.dataframe(pd.DataFrame([row_raw[bill_cols]], columns=bill_cols), use_container_width=True)
+            st.dataframe(pd.DataFrame([row_raw[bill_cols]], columns=bill_cols), use_container_width=True, hide_index=True)
         if pmt_cols:
             st.markdown("#### PAY AMT 1 sampai 6 (pembayaran 6 bulan)")
-            st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), use_container_width=True)
+            st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), use_container_width=True, hide_index=True)
 
         # Ringkasan rules
         st.markdown("#### Ringkasan Rules")
@@ -552,13 +621,13 @@ try:
             "DPD proxy now": "Yes" if int(row_skor["dpd_proxy_now"]) else "No",
             "Streak telat 2+": "Yes" if int(row_skor["streak_telat2plus"]) else "No",
         }])
-        st.dataframe(rules_df, use_container_width=True)
+        st.dataframe(rules_df, use_container_width=True, hide_index=True)
 
         # Label target (jika ada)
         if "default.payment.next.month" in row_skor:
             st.markdown("#### Label Target")
             st.dataframe(pd.DataFrame({"Default payment next month":[row_skor["default.payment.next.month"]]}),
-                         use_container_width=True)
+                         use_container_width=True, hide_index=True)
 
         # Insight
         st.markdown("#### Insight")
