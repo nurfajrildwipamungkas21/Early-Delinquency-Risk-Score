@@ -1,12 +1,23 @@
-# app.py — EDRS Streamlit (Rule-based) — single-file, mobile-clean
+# app.py — EDRS Streamlit (Rule-based) — production single-file
 
-import os, json, re, textwrap, hashlib, requests, io
+import os, json, re, textwrap, hashlib, requests, io, logging
 from pathlib import Path
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html as st_html  # untuk helper ringan
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Logging ringan (console) + level dari env jika ada
+# ────────────────────────────────────────────────────────────────────────────────
+LOG_LEVEL = os.environ.get("EDRS_LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s | %(levelname)s | %(message)s",
+)
+log = logging.getLogger("edrs")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Page config + built-in client options (tanpa config.toml)
@@ -17,19 +28,23 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
 # Hilangkan toolbar dev (Stop/Share), navigasi sidebar bawaan
 st.set_option("client.toolbarMode", "viewer")
 st.set_option("client.showSidebarNavigation", False)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Global CSS (mobile-first) — sembunyikan seluruh header/toolbar/menu/footer
-# serta tombol collapse sidebar & fallback text material icons
+# Global CSS + meta PWA ringan + tema auto (prefers-color-scheme)
 # ────────────────────────────────────────────────────────────────────────────────
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- PWA-lite meta -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0ea5e9">
 """
 
 GLOBAL_CSS = f"""{font_link}
@@ -37,37 +52,61 @@ GLOBAL_CSS = f"""{font_link}
 :root {{
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
+  --bg: #ffffff; --fg:#111827; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb; --accent:#0ea5e9;
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{
+    --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#242b36; --accent:#38bdf8;
+  }}
+}}
+html, body {{
+  background: var(--bg) !important; color: var(--fg) !important;
 }}
 /* Hilangkan semua fallback teks ikon material bila ada */
 span[class*="material"] {{
   font-size:0 !important; line-height:0 !important; visibility:hidden !important;
 }}
-html, body,
+/* Tipografi */
 [data-testid="stAppViewContainer"] * {{
   font-family: var(--font-body) !important;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }}
-h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
-.legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
-.small-note {{ color:#57606a; font-size:12px; }}
+h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; color:var(--fg); }}
+.legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; color:var(--fg); }}
+.small-note {{ color:var(--muted); font-size:12px; }}
+
+/* Kontainer & card */
+.block-container {{
+  padding-top:1.2rem !important; padding-bottom:2rem !important;
+}}
+.stDownloadButton > button, .stButton > button {{
+  border-radius: 12px; border:1px solid var(--border);
+  background: var(--accent); color: white;
+}}
+.stDataFrame {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: .25rem;
+}}
 
 /* Responsif mobile */
 @media (max-width: 640px) {{
   :root {{ --fs-base: 13px; }}
   h1 {{ font-size:1.55rem !important; }}
   h2 {{ font-size:1.25rem !important; }}
-  .block-container {{ padding-top:1rem !important; padding-bottom:2rem !important; }}
   .stDownloadButton {{ width:100% !important; }}
 }}
 
-/* Sidebar width */
-[data-testid="stSidebar"] {{ min-width:290px; width:290px; }}
+/* Sidebar */
+[data-testid="stSidebar"] {{
+  min-width:290px; width:290px; background:var(--card);
+  border-right:1px solid var(--border);
+}}
 
 /* Hapus semua elemen header/toolbar/menu/footer agar bersih di HP & desktop */
-#MainMenu,
-header, footer,
+#MainMenu, header, footer,
 div[data-testid="stToolbar"],
-div[data-testid=\"stStatusWidget\"],
+div[data-testid="stStatusWidget"],
 div[data-testid="stDecoration"] {{
   display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
 }}
@@ -92,6 +131,7 @@ INDEX_PATH = CACHE_DIR / "index.json"
 APP_DIR = Path(__file__).parent
 UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
 SAVED_PATH = UPLOADED_DIR / "latest_data"
+MAX_UPLOAD_MB = int(os.environ.get("EDRS_MAX_UPLOAD_MB", "25"))
 
 ALLOWED_PASAL = {
     "Perikatan/Wanprestasi": [
@@ -159,13 +199,17 @@ def safe_div(a, b, eps=1e-6):
     return a / (np.abs(b) + eps)
 
 def _call_gemini(prompt_text: str, timeout: int = 40) -> str:
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-    payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-    r = requests.post(GEMINI_ENDPOINT, params={"key": GEMINI_API_KEY},
-                      headers=headers, json=payload, timeout=timeout)
-    r.raise_for_status()
-    data = r.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    try:
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+        r = requests.post(GEMINI_ENDPOINT, params={"key": GEMINI_API_KEY},
+                          headers=headers, json=payload, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception as e:
+        log.warning(f"GEMINI fallback: {e}")
+        return ""  # biarkan caller pakai fallback narasi
 
 def _sanitize_plain(text: str) -> str:
     t = re.sub(r'^\s*#{1,6}\s*', '', text, flags=re.MULTILINE)
@@ -223,8 +267,10 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _read_file_any(path: Path) -> pd.DataFrame:
     suf = path.suffix.lower()
     if suf == '.csv':
-        try: df = pd.read_csv(path)
-        except Exception: df = pd.read_csv(path, sep=';')
+        try:
+            df = pd.read_csv(path)
+        except Exception:
+            df = pd.read_csv(path, sep=';')
         return _normalize_columns(df)
     if suf in ('.xlsx','.xls'):
         for hdr in (0,1):
@@ -239,10 +285,14 @@ def _read_file_any(path: Path) -> pd.DataFrame:
         return _normalize_columns(pd.read_parquet(path))
     raise ValueError(f"Tipe file tidak didukung: {suf}")
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
+    """
+    Cache 1 jam untuk data; auto fallback ke sampel repo jika tidak ada upload.
+    """
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
+        log.info(f"Load saved data: {saved_path}")
         return _read_file_any(saved_path)
     candidates = [
         APP_DIR / "data" / "UCI_Credit_Card.csv",
@@ -251,7 +301,9 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
         APP_DIR / "default of credit card clients.xls",
     ]
     for p in candidates:
-        if p.exists(): return _read_file_any(p)
+        if p.exists():
+            log.info(f"Load sample data: {p}")
+            return _read_file_any(p)
     raise FileNotFoundError("Tidak ada data tersimpan maupun sampel bawaan. Silakan unggah file.")
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -462,26 +514,29 @@ def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Ser
     if str(id_val) in idx and idx[str(id_val)].get("sig") == sig:
         p = Path(idx[str(id_val)]["path"])
         if p.exists():
-            try: return p.read_text(encoding="utf-8")
-            except Exception: pass
-    try:
-        draft1 = _call_gemini(_build_prompt_step1(id_val, row_raw, row_skor, insight_text))
-        final  = _call_gemini(_build_prompt_step2(draft1))
-        text   = final.strip()
-    except Exception:
-        text = _fallback_conclusion(row_raw, row_skor)
+            try:
+                return p.read_text(encoding="utf-8")
+            except Exception:
+                pass
+    draft1 = _call_gemini(_build_prompt_step1(id_val, row_raw, row_skor, insight_text))
+    if not draft1:
+        return _fallback_conclusion(row_raw, row_skor)
+    final  = _call_gemini(_build_prompt_step2(draft1))
+    text   = (final or "").strip() or _fallback_conclusion(row_raw, row_skor)
+
     p = _cache_file(id_val, sig)
     try:
         p.write_text(text, encoding="utf-8")
         idx[str(id_val)] = {"sig": sig, "path": str(p)}
         _save_index(idx)
-    except Exception:
-        pass
+    except Exception as e:
+        log.debug(f"Cache write skip: {e}")
     return text
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Excel export
 # ────────────────────────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False, ttl=3600)
 def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     buf = io.BytesIO()
     now_str     = datetime.now().strftime("%d %B %Y, %H:%M WIB")
@@ -561,6 +616,10 @@ uploaded_sb = st.sidebar.file_uploader(
     "Unggah data (CSV / XLS/XLSX/Parquet)", type=["csv","xls","xlsx","parquet"]
 )
 if uploaded_sb is not None:
+    size_mb = uploaded_sb.size / (1024*1024)
+    if size_mb > MAX_UPLOAD_MB:
+        st.sidebar.error(f"Ukuran file {size_mb:.1f} MB melebihi batas {MAX_UPLOAD_MB} MB. Kompres atau bagi file Anda.")
+        st.stop()
     dst = _save_uploaded(uploaded_sb)
     st.sidebar.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
     st.cache_data.clear()
@@ -576,6 +635,10 @@ show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
 
+# Mode mobile (ringkas kolom)
+mobile_compact = st.sidebar.toggle("Mode Mobile (ringkas kolom)", value=True,
+                                   help="Saat aktif, tabel utama menampilkan kolom inti agar nyaman di layar HP.")
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Load + compute + render
 # ────────────────────────────────────────────────────────────────────────────────
@@ -583,11 +646,17 @@ try:
     raw_df = load_data("saved-first", str(_saved) if _saved else "")
     base_df, out, top_prior, top_prior_all = compute_features(raw_df.copy())
 
-    cols_for_display = [
+    # Kolom untuk view
+    core_cols = [
+        "ID","LIMIT_BAL","edrs_score","bucket","next_best_action",
+        "ratio_bayar_last","dpd_proxy_now"
+    ]
+    full_cols = [
         "ID","LIMIT_BAL","edrs_score","bucket","next_best_action",
         "count_telat_3m","count_telat_6m","max_tunggakan_6m",
         "ratio_bayar_last","bill_trend_up","dpd_proxy_now","streak_telat2plus"
     ] + (["default.payment.next.month"] if "default.payment.next.month" in out.columns else [])
+    cols_for_display = core_cols if mobile_compact else full_cols
 
     st.title("EDRS — Early Delinquency Risk Score")
     st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
@@ -600,7 +669,7 @@ try:
     st.dataframe(df_show[cols_for_display], width='stretch', hide_index=True)
 
     with st.spinner("Menyiapkan Excel…"):
-        excel_bytes = build_excel(top_prior_all, cols_for_display)
+        excel_bytes = build_excel(top_prior_all, full_cols)
     st.download_button(
         "⬇️ Unduh Excel report", data=excel_bytes,
         file_name="priorities_edrs_report.xlsx",
@@ -669,6 +738,11 @@ try:
             kesimpulan_text = _sanitize_plain(kesimpulan_text)
         st.markdown(f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>", unsafe_allow_html=True)
 
+    # Log ringkas (opsional) untuk debugging cepat di UI
+    with st.expander("🪵 Log ringkas (opsional)"):
+        st.code(f"Upload dir  : {UPLOADED_DIR}\nCache dir   : {CACHE_DIR}\nMax upload  : {MAX_UPLOAD_MB} MB\nRows (out)  : {len(out)}", language="text")
+
 except Exception as e:
+    log.exception("Top-level failure")
     st.error(f"Gagal memproses: {e}")
     st.stop()
