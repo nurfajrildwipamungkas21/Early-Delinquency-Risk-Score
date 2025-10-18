@@ -132,6 +132,56 @@ input, select, textarea, .stNumberInput input, .stTextInput input {{
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
+# Tambahan CSS khusus untuk file_uploader (tempel setelah OVERRIDE_CSS)
+st.markdown("""
+<style>
+/* Bungkus utama komponen */
+.stFileUploader, [data-testid="stFileUploader"] * {
+  color: var(--fg) !important;
+}
+
+/* Kotak dropzone */
+[data-testid="stFileUploaderDropzone"]{
+  background: var(--card) !important;
+  border: 1.5px dashed var(--accent) !important;
+  border-radius: 12px !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover,
+[data-testid="stFileUploaderDropzone"]:focus-within{
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent) !important;
+}
+
+/* Teks utama & subteks di dalam dropzone */
+[data-testid="stFileUploaderDropzone"] *{
+  color: var(--fg) !important;
+  opacity: 1 !important;
+}
+[data-testid="stFileUploaderDropzone"] p,
+[data-testid="stFileUploaderDropzone"] span{
+  font-size: calc(var(--fs-base) * 0.95) !important;
+}
+[data-testid="stFileUploaderDropzone"] p:first-child{
+  font-weight: 600 !important;            /* "Drag and drop file here" */
+  font-size: calc(var(--fs-base) * 1.0) !important;
+}
+
+/* Tombol "Browse files" */
+.stFileUploader > div [role="button"]{
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+
+/* Daftar file terunggah (kalau ada) */
+[data-testid="stFileUploaderFile"] *{
+  color: var(--fg) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
 # ────────────────────────────────────────────────────────────────────────────────
