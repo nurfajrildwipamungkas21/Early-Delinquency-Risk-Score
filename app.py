@@ -1,4 +1,4 @@
-# app.py — EDRS Streamlit (Rule-based) — production single-file
+# app.py — EDRS Streamlit (Rule-based) — production single-file (final)
 
 import os, json, re, textwrap, hashlib, requests, io, logging
 from pathlib import Path
@@ -7,20 +7,17 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import streamlit as st
-from streamlit.components.v1 import html as st_html  # untuk helper ringan
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Logging ringan (console) + level dari env jika ada
+# Logging
 # ────────────────────────────────────────────────────────────────────────────────
 LOG_LEVEL = os.environ.get("EDRS_LOG_LEVEL", "INFO").upper()
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO),
+                    format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger("edrs")
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Page config + built-in client options (tanpa config.toml)
+# Page config + client options (tanpa config.toml)
 # ────────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="EDRS — Early Delinquency Risk Score",
@@ -28,19 +25,16 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-# Hilangkan toolbar dev (Stop/Share), navigasi sidebar bawaan
 st.set_option("client.toolbarMode", "viewer")
 st.set_option("client.showSidebarNavigation", False)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Global CSS + meta PWA ringan + tema auto (prefers-color-scheme)
+# Global CSS + meta PWA ringan
 # ────────────────────────────────────────────────────────────────────────────────
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-<!-- PWA-lite meta -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -52,70 +46,87 @@ GLOBAL_CSS = f"""{font_link}
 :root {{
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
-  --bg: #ffffff; --fg:#111827; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb; --accent:#0ea5e9;
+  /* default (light) */
+  --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
+  --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
 }}
 @media (prefers-color-scheme: dark) {{
   :root {{
-    --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#242b36; --accent:#38bdf8;
+    --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
+    --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
   }}
 }}
-html, body {{
+/* Pastikan SELURUH permukaan ikut berubah warna */
+html, body,
+[data-testid="stAppViewContainer"], .main, .block-container {{
   background: var(--bg) !important; color: var(--fg) !important;
 }}
-/* Hilangkan semua fallback teks ikon material bila ada */
-span[class*="material"] {{
-  font-size:0 !important; line-height:0 !important; visibility:hidden !important;
-}}
-/* Tipografi */
+/* Hilangkan fallback teks ikon material (menghapus keyboard_double_arrow_*) */
+span[class*="material"] {{ font-size:0 !important; line-height:0 !important; visibility:hidden !important; }}
+/* Tipografi umum */
 [data-testid="stAppViewContainer"] * {{
   font-family: var(--font-body) !important;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  color: var(--fg);
 }}
-h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; color:var(--fg); }}
-.legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; color:var(--fg); }}
-.small-note {{ color:var(--muted); font-size:12px; }}
+/* Paksa visibilitas: tidak ada opacity redup di dark mode */
+h1,h2,h3,h4, p, li, label, .stMarkdown, .stMarkdown p, .stText, .stCaption {{
+  color: var(--fg) !important; opacity: 1 !important;
+}}
+h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
+.legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
+.small-note {{ color: var(--muted) !important; }}
 
-/* Kontainer & card */
-.block-container {{
-  padding-top:1.2rem !important; padding-bottom:2rem !important;
-}}
+/* Kontainer & tombol */
+.block-container {{ padding-top:1.2rem !important; padding-bottom:2rem !important; }}
 .stDownloadButton > button, .stButton > button {{
   border-radius: 12px; border:1px solid var(--border);
   background: var(--accent); color: white;
 }}
-.stDataFrame {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px; padding: .25rem;
+/* Sidebar */
+[data-testid="stSidebar"] {{
+  min-width:290px; width:290px; background:var(--card) !important;
+  border-right:1px solid var(--border);
+}}
+/* Komponen yang kita sembunyikan untuk kebersihan UI */
+#MainMenu, header, footer,
+div[data-testid="stToolbar"], div[data-testid="stStatusWidget"], div[data-testid="stDecoration"] {{
+  display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
+}}
+/* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
+[data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {{
+  display:none !important; visibility:hidden !important;
 }}
 
-/* Responsif mobile */
+/* TABEL: kontras tinggi */
+.stDataFrame {{
+  background: var(--card) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: .25rem !important;
+}}
+.stDataFrame table {{ font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }}
+.stDataFrame thead tr th {{
+  position: sticky; top: 0;
+  background: var(--thead) !important; color: var(--fg) !important;
+  font-weight: 600 !important; border-bottom: 2px solid var(--border) !important;
+}}
+.stDataFrame tbody tr td {{ border-color: var(--border) !important; padding: 8px 10px !important; }}
+.stDataFrame tbody tr:nth-child(even) td {{ background: var(--zebra) !important; }}
+.stDataFrame tbody tr:nth-child(odd)  td {{ background: transparent !important; }}
+.stDataFrame tbody tr:hover td {{ background: var(--zebra2) !important; }}
+
+/* Input/widget: teks kontras */
+input, select, textarea, .stNumberInput input, .stTextInput input {{
+  color: var(--fg) !important; background: var(--card) !important; border-color: var(--border) !important;
+}}
+
+/* Mobile tweaks */
 @media (max-width: 640px) {{
   :root {{ --fs-base: 13px; }}
   h1 {{ font-size:1.55rem !important; }}
   h2 {{ font-size:1.25rem !important; }}
   .stDownloadButton {{ width:100% !important; }}
-}}
-
-/* Sidebar */
-[data-testid="stSidebar"] {{
-  min-width:290px; width:290px; background:var(--card);
-  border-right:1px solid var(--border);
-}}
-
-/* Hapus semua elemen header/toolbar/menu/footer agar bersih di HP & desktop */
-#MainMenu, header, footer,
-div[data-testid="stToolbar"],
-div[data-testid="stStatusWidget"],
-div[data-testid="stDecoration"] {{
-  display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
-}}
-
-/* Hapus tombol collapse sidebar (menghilangkan teks 'keyboard_double_arrow_right') */
-[data-testid="collapsed-control"],
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapseButton"] {{
-  display:none !important; visibility:hidden !important;
 }}
 </style>
 """
@@ -227,6 +238,8 @@ def _sanitize_plain(text: str) -> str:
 # ────────────────────────────────────────────────────────────────────────────────
 # Data loading helpers
 # ────────────────────────────────────────────────────────────────────────────────
+APP_DIR = Path(__file__).parent
+
 def _saved_file_path() -> Path | None:
     for ext in (".csv", ".xlsx", ".xls", ".parquet"):
         p = SAVED_PATH.with_suffix(ext)
@@ -287,9 +300,6 @@ def _read_file_any(path: Path) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
-    """
-    Cache 1 jam untuk data; auto fallback ke sampel repo jika tidak ada upload.
-    """
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
         log.info(f"Load saved data: {saved_path}")
@@ -433,26 +443,21 @@ def generate_insight(row_raw: pd.Series, row_skor: pd.Series, limit_pct: pd.Seri
         f"Keterlambatan terlama tercatat {max_dpd} bulan.",
         f"Tren tagihan {trend_txt} dan {ratio_desc}.",
         f"Nasabah tergolong {bucket} dengan EDRS score {score}.",
-        edrs_def,
-        limit_def,
+        edrs_def, limit_def,
         f"Rekomendasi saat ini adalah {action}. {reschedule_def}"
     ]
     return " ".join(lines)
 
 def _fallback_conclusion(row_raw: pd.Series, row_skor: pd.Series) -> str:
-    bucket = str(row_skor["bucket"])
-    dpdnow = int(row_skor["dpd_proxy_now"])
-    ratio  = float(row_skor["ratio_bayar_last"])
+    bucket = str(row_skor["bucket"]); dpdnow = int(row_skor["dpd_proxy_now"]); ratio  = float(row_skor["ratio_bayar_last"])
     garis  = []
     if bucket in ("Very High", "High"):
         garis.append("Risiko gagal bayar tinggi sehingga dasar penagihan menekankan wanprestasi sesuai perikatan.")
         garis.append("Sebagai langkah awal tim melakukan klarifikasi kewajiban bayar, mengirim somasi yang proporsional, serta menawarkan restruktur ringan apabila layak.")
     else:
         garis.append("Risiko berada pada tingkat menengah atau lebih rendah sehingga pendekatan persuasif dan penguatan komitmen bayar lebih diutamakan.")
-    if dpdnow >= 1:
-        garis.append("Status DPD saat ini mengindikasikan keterlambatan yang dapat dikualifikasikan sebagai wanprestasi.")
-    if ratio < 0.7:
-        garis.append("Rasio pembayaran terakhir berada di bawah ambang normal sehingga mengindikasikan pelemahan kemampuan bayar.")
+    if dpdnow >= 1: garis.append("Status DPD saat ini mengindikasikan keterlambatan yang dapat dikualifikasikan sebagai wanprestasi.")
+    if ratio < 0.7: garis.append("Rasio pembayaran terakhir berada di bawah ambang normal sehingga mengindikasikan pelemahan kemampuan bayar.")
     garis.append("Dasar hukum mengacu pada hukum perdata, kontrak, dan perjanjian terutama klausul wanprestasi dan denda sesuai kesepakatan.")
     garis.append("Apabila debitur tetap mengelak atau menolak membayar tim menempuh somasi lanjutan dan gugatan perdata untuk pemenuhan perikatan atau ganti rugi.")
     garis.append("Karena adanya pasal sanksi yang disetujui para pihak di dalam perjanjian eksekusi jaminan atau penarikan barang dapat dilakukan apabila perjanjian memuat jaminan atau klausul sanksi yang sah dan seluruh prosedur formal dipenuhi misalnya melalui titel eksekutorial atau penetapan atau putusan pengadilan yang berlaku tanpa tindakan sepihak yang melanggar hukum.")
@@ -461,10 +466,8 @@ def _fallback_conclusion(row_raw: pd.Series, row_skor: pd.Series) -> str:
 
 def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     ctx = {
-        "ID": int(row_raw.get("ID")),
-        "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
-        "bucket": str(row_skor.get("bucket")),
-        "edrs_score": int(row_skor.get("edrs_score")),
+        "ID": int(row_raw.get("ID")), "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
+        "bucket": str(row_skor.get("bucket")), "edrs_score": int(row_skor.get("edrs_score")),
         "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
         "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
         "count_telat_3m": int(row_skor.get("count_telat_3m")),
@@ -514,16 +517,12 @@ def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Ser
     if str(id_val) in idx and idx[str(id_val)].get("sig") == sig:
         p = Path(idx[str(id_val)]["path"])
         if p.exists():
-            try:
-                return p.read_text(encoding="utf-8")
-            except Exception:
-                pass
+            try: return p.read_text(encoding="utf-8")
+            except Exception: pass
     draft1 = _call_gemini(_build_prompt_step1(id_val, row_raw, row_skor, insight_text))
-    if not draft1:
-        return _fallback_conclusion(row_raw, row_skor)
+    if not draft1: return _fallback_conclusion(row_raw, row_skor)
     final  = _call_gemini(_build_prompt_step2(draft1))
     text   = (final or "").strip() or _fallback_conclusion(row_raw, row_skor)
-
     p = _cache_file(id_val, sig)
     try:
         p.write_text(text, encoding="utf-8")
@@ -542,10 +541,8 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     now_str     = datetime.now().strftime("%d %B %Y, %H:%M WIB")
     kategori    = "Prioritas Koleksi — EDRS (Rule-based)"
     total_baris = len(top_prior_all)
-
     with pd.ExcelWriter(buf, engine="xlsxwriter") as xlw:
         wb = xlw.book
-
         def write_sheet_with_header(sheet_name, df_data, title):
             ws = wb.add_worksheet(sheet_name)
             fmt_title = wb.add_format({"bold":True,"font_name":"Calibri","font_size":14,"bg_color":"#C6E0B4","align":"left","valign":"vcenter"})
@@ -558,16 +555,13 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
             ws.write(3,0,"Total Baris", fmt_label);     ws.write(3,1, total_baris, fmt_text)
             ws.write(4,0,"Kategori", fmt_label);        ws.write(4,1, kategori, fmt_text)
             start_row = 7
-            for j, col in enumerate(df_data.columns):
-                ws.write(start_row, j, col, fmt_th)
+            for j, col in enumerate(df_data.columns): ws.write(start_row, j, col, fmt_th)
             for i in range(len(df_data)):
-                for j, col in enumerate(df_data.columns):
-                    ws.write(start_row+1+i, j, df_data.iloc[i, j], fmt_cell)
+                for j, col in enumerate(df_data.columns): ws.write(start_row+1+i, j, df_data.iloc[i, j], fmt_cell)
             for j, col in enumerate(df_data.columns):
                 width = min(max(10, int(df_data[col].astype(str).map(len).quantile(0.90))+2), 40)
                 ws.set_column(j, j, width)
             ws.freeze_panes(start_row+1, 0)
-
         col_display_names = {
             "ID": "ID", "LIMIT_BAL": "LIMIT BAL", "edrs_score": "EDRS score", "bucket": "Bucket",
             "next_best_action": "Next best action", "count_telat_3m": "Count telat 3m",
@@ -576,22 +570,14 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
             "dpd_proxy_now": "DPD proxy now", "streak_telat2plus": "Streak telat 2+",
             "default.payment.next.month": "Default payment next month",
         }
-
-        write_sheet_with_header(
-            "All",
-            top_prior_all[cols_for_display].rename(columns=col_display_names),
-            "Status: Priorities EDRS (All Buckets, sorted)"
-        )
-        write_sheet_with_header(
-            "Top_Very_High",
-            top_prior_all[top_prior_all["bucket"]=="Very High"].head(200)[cols_for_display].rename(columns=col_display_names),
-            "Status: Top Very High"
-        )
-        write_sheet_with_header(
-            "Top_High",
-            top_prior_all[top_prior_all["bucket"]=="High"].head(200)[cols_for_display].rename(columns=col_display_names),
-            "Status: Top High"
-        )
+        write_sheet_with_header("All",  top_prior_all[cols_for_display].rename(columns=col_display_names),
+                                "Status: Priorities EDRS (All Buckets, sorted)")
+        write_sheet_with_header("Top_Very_High",
+                                top_prior_all[top_prior_all["bucket"]=="Very High"].head(200)[cols_for_display].rename(columns=col_display_names),
+                                "Status: Top Very High")
+        write_sheet_with_header("Top_High",
+                                top_prior_all[top_prior_all["bucket"]=="High"].head(200)[cols_for_display].rename(columns=col_display_names),
+                                "Status: Top High")
         summ_df = (top_prior_all.groupby("bucket")
                    .agg(n=("ID","count"),
                         avg_score=("edrs_score","mean"),
@@ -603,7 +589,6 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
             "pay_ratio_lt_0_7":"Proporsi bayar <70%","dpd_now":"Proporsi DPD proxy"
         })
         write_sheet_with_header("Summary", summ_df, "Status: Ringkasan Bucket")
-
     buf.seek(0)
     return buf.read()
 
@@ -635,17 +620,13 @@ show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
 
-# === Kontrol aksesibilitas UI ===
-theme_choice = st.sidebar.selectbox(
-    "Tema", ["Auto", "Terang", "Gelap"], index=0,
-    help="Auto mengikuti setting sistem. Pilih Terang/Gelap untuk memaksa tema."
-)
-ui_scale = st.sidebar.slider(
-    "Skala UI", min_value=90, max_value=120, value=105, step=5,
-    help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%)."
-)
+# Kontrol aksesibilitas UI
+theme_choice = st.sidebar.selectbox("Tema", ["Auto", "Terang", "Gelap"], index=0,
+                                    help="Auto mengikuti setting sistem. Pilih Terang/Gelap untuk memaksa tema.")
+ui_scale = st.sidebar.slider("Skala UI", min_value=90, max_value=120, value=105, step=5,
+                             help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%).")
 
-# === CSS override: kontras tinggi + skala UI + tabel yang jelas ===
+# CSS override sesuai pilihan tema & skala
 def _vars_for_theme(choice: str) -> str:
     if choice == "Terang":
         return """
@@ -657,60 +638,16 @@ def _vars_for_theme(choice: str) -> str:
         --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
         --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
         """
-    # Auto = biarkan default dari CSS awal (prefers-color-scheme)
-    return ""
+    return ""  # Auto -> pakai prefers-color-scheme
 
-_ui_fs = round(13.5 * ui_scale/100, 2)  # px
+_ui_fs = round(13.5 * ui_scale/100, 2)
 _theme_vars = _vars_for_theme(theme_choice)
 
-OVERRIDE_CSS = f"""
+st.markdown(f"""
 <style>
-:root {{
-  --fs-base:{_ui_fs}px;
-  {_theme_vars}
-}}
-/* Tabel: kontras & keterbacaan */
-.stDataFrame table {{
-  font-size: calc(var(--fs-base) * 0.95) !important;
-  color: var(--fg) !important;
-}}
-.stDataFrame thead tr th {{
-  position: sticky; top: 0;
-  background: var(--thead) !important;
-  color: var(--fg) !important;
-  font-weight: 600 !important;
-  border-bottom: 2px solid var(--border) !important;
-}}
-.stDataFrame tbody tr td {{
-  border-color: var(--border) !important;
-  padding: 8px 10px !important;
-}}
-/* Zebra striping + hover */
-.stDataFrame tbody tr:nth-child(even) td {{ background: var(--zebra) !important; }}
-.stDataFrame tbody tr:nth-child(odd)  td {{ background: transparent !important; }}
-.stDataFrame tbody tr:hover td {{
-  background: var(--zebra2) !important;
-}}
-/* Bingkai tabel/card lebih tebal */
-.stDataFrame {{
-  background: var(--card) !important;
-  border: 1.5px solid var(--border) !important;
-  border-radius: 12px !important;
-  padding: .25rem !important;
-}}
-/* Widget input: pastikan teks kontras */
-input, select, textarea, .stNumberInput input, .stTextInput input {{
-  color: var(--fg) !important; background: var(--card) !important; border-color: var(--border) !important;
-}}
-/* Label widget */
-label, .st-emotion-cache-1b2t2o2, .stMarkdown p, .stCaption, .stText {{
-  color: var(--fg) !important;
-}}
-/* Judul seksi agar menonjol */
-h2, h3 {{ color: var(--fg) !important; }}
+:root {{ --fs-base:{_ui_fs}px; {_theme_vars} }}
 </style>
-"""
-st.markdown(OVERRIDE_CSS, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # Mode mobile (ringkas kolom)
 mobile_compact = st.sidebar.toggle("Mode Mobile (ringkas kolom)", value=True,
@@ -723,11 +660,7 @@ try:
     raw_df = load_data("saved-first", str(_saved) if _saved else "")
     base_df, out, top_prior, top_prior_all = compute_features(raw_df.copy())
 
-    # Kolom untuk view
-    core_cols = [
-        "ID","LIMIT_BAL","edrs_score","bucket","next_best_action",
-        "ratio_bayar_last","dpd_proxy_now"
-    ]
+    core_cols = ["ID","LIMIT_BAL","edrs_score","bucket","next_best_action","ratio_bayar_last","dpd_proxy_now"]
     full_cols = [
         "ID","LIMIT_BAL","edrs_score","bucket","next_best_action",
         "count_telat_3m","count_telat_6m","max_tunggakan_6m",
@@ -747,11 +680,9 @@ try:
 
     with st.spinner("Menyiapkan Excel…"):
         excel_bytes = build_excel(top_prior_all, full_cols)
-    st.download_button(
-        "⬇️ Unduh Excel report", data=excel_bytes,
-        file_name="priorities_edrs_report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    st.download_button("⬇️ Unduh Excel report", data=excel_bytes,
+                       file_name="priorities_edrs_report.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     st.markdown("---")
     st.subheader("Viewer Interaktif — Masukkan ID untuk melihat detail")
@@ -773,7 +704,7 @@ try:
                                 **row_skor[["edrs_score","bucket","next_best_action"]].to_dict()}, index=[0])
         st.dataframe(meta_df, width='stretch', hide_index=True)
 
-        pay_cols = [c for c in [f"PAY_{i}" for i in range(7)] if c in base_df.columns]
+        pay_cols  = [c for c in [f"PAY_{i}" for i in range(7)] if c in base_df.columns]
         bill_cols = [c for c in [f"BILL_AMT{i}" for i in range(1,7)] if c in base_df.columns]
         pmt_cols  = [c for c in [f"PAY_AMT{i}"  for i in range(1,7)] if c in base_df.columns]
 
@@ -813,11 +744,8 @@ try:
         with st.spinner("Menyusun narasi…"):
             kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
             kesimpulan_text = _sanitize_plain(kesimpulan_text)
-        st.markdown(f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>", unsafe_allow_html=True)
-
-    # Log ringkas (opsional) untuk debugging cepat di UI
-    with st.expander("🪵 Log ringkas (opsional)"):
-        st.code(f"Upload dir  : {UPLOADED_DIR}\nCache dir   : {CACHE_DIR}\nMax upload  : {MAX_UPLOAD_MB} MB\nRows (out)  : {len(out)}", language="text")
+        st.markdown(f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
+                    unsafe_allow_html=True)
 
 except Exception as e:
     log.exception("Top-level failure")
