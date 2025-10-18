@@ -61,8 +61,13 @@ html, body,
 [data-testid="stAppViewContainer"], .main, .block-container {{
   background: var(--bg) !important; color: var(--fg) !important;
 }}
-/* Hilangkan fallback teks ikon material (menghapus keyboard_double_arrow_*) */
-span[class*="material"] {{ font-size:0 !important; line-height:0 !important; visibility:hidden !important; }}
+/* Sembunyikan HANYA ikon keyboard_* yang tidak dibutuhkan */
+span[aria-label="keyboard_double_arrow_right"],
+span[aria-label="keyboard_arrow_right"],
+span[aria-label="keyboard_double_arrow_left"],
+span[aria-label="keyboard_arrow_left"] {
+  font-size:0 !important; line-height:0 !important; visibility:hidden !important;
+}
 /* Tipografi umum */
 [data-testid="stAppViewContainer"] * {{
   font-family: var(--font-body) !important;
@@ -174,8 +179,16 @@ st.markdown("""
   border-radius: 10px !important;
 }
 
-/* Daftar file terunggah (kalau ada) */
-[data-testid="stFileUploaderFile"] *{
+/* ===== Selectbox "Tema" agar terlihat jelas di Light/Dark ===== */
+[data-testid="stSelectbox"] label,
+[data-testid="stSelectbox"] div[role="combobox"],
+[data-testid="stSelectbox"] div[role="combobox"] * {
+  color: var(--fg) !important;
+}
+[data-testid="stSelectbox"] div[role="combobox"] {
+  border-color: var(--border) !important;
+}
+[data-testid="stSelectbox"] svg {
   color: var(--fg) !important;
 }
 </style>
