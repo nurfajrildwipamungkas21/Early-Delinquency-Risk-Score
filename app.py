@@ -1,4 +1,5 @@
 # app.py — EDRS Streamlit (Rule-based) — dynamic + polished narrative (PROD)
+
 import os, json, re, textwrap, hashlib, requests, io
 from pathlib import Path
 from datetime import datetime
@@ -55,7 +56,6 @@ GLOBAL_CSS = f"""{font_link}
 .material-symbols-outlined {{
   font-family: 'Material Symbols Outlined' !important;
   font-weight: normal; font-style: normal; line-height: 1; display: inline-block;
-  /* variable font settings */
   font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }}
@@ -76,12 +76,15 @@ h1,h2,h3,h4 {{ font-weight: 600; letter-spacing:.2px; }}
   h1 {{ font-size: 1.55rem !important; }}
   h2 {{ font-size: 1.25rem !important; }}
   .block-container {{ padding-top: 1rem !important; padding-bottom: 2.25rem !important; }}
-  /* beri ruang untuk tombol unduh agar tidak ketabrak */
   .stDownloadButton {{ width: 100% !important; }}
 }}
 /* Perbaiki lebar sidebar saat visible (tanpa memaksa selalu terbuka) */
 [data-testid="stSidebar"] {{
   min-width: 290px; width: 290px;
+}}
+/* Sembunyikan ikon collapsed-control agar tidak terlihat seperti 'keyboard_double_arrow_right' */
+[data-testid="collapsed-control"] {{
+  display: none !important;
 }}
 </style>
 """
@@ -96,7 +99,7 @@ INDEX_PATH = CACHE_DIR / "index.json"
 
 APP_DIR = Path(__file__).parent
 UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
-SAVED_PATH = UPLOADED_DIR / "latest_data"  # ekstensi akan disesuaikan
+SAVED_PATH = UPLOADED_DIR / "latest_data"
 
 ALLOWED_PASAL = {
     "Perikatan/Wanprestasi": [
@@ -605,7 +608,7 @@ with st.expander("⚙️ Pengaturan (Mobile Friendly)", expanded=False):
         key="buckets_m"
     )
 
-# Ambil nilai final: prioritas pakai input Mobile jika diisi, selain itu pakai Sidebar
+# Ambil nilai final: gunakan input Mobile jika ada
 top_n = int(st.session_state.get("top_n_m") or st.session_state.get("top_n_sb") or 20)
 show_bucket_only = st.session_state.get("buckets_m") or st.session_state.get("buckets_sb") or ["Very High","High"]
 
