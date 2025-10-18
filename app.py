@@ -58,7 +58,7 @@ INDEX_PATH = CACHE_DIR / "index.json"
 
 # Persist lokasi file upload agar jadi default
 APP_DIR = Path(__file__).parent
-UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
+UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
 SAVED_PATH = UPLOADED_DIR / "latest_data"  # akan diberi ekstensi sesuai file yang disimpan
 
 ALLOWED_PASAL = {
@@ -155,7 +155,7 @@ def _sanitize_plain(text: str) -> str:
     return t.strip()
 
 # -----------------------------
-# Data loading (persist upload)
+# Data loading helpers (persist upload + robust schema)
 # -----------------------------
 def _saved_file_path() -> Path | None:
     # Cari file tersimpan apapun ekstensinya
@@ -168,31 +168,81 @@ def _saved_file_path() -> Path | None:
 def _save_uploaded(file: "UploadedFile") -> Path:
     # Simpan sesuai ekstensi asli
     suffix = Path(file.name).suffix.lower()
-    dst = SAVED_PATH.with_suffix(suffix if suffix in [".csv",".xlsx",".xls",".parquet"] else ".csv")
+    dst = SAVED_PATH.with_suffix(suffix if suffix in [".csv", ".xlsx", ".xls", ".parquet"] else ".csv")
     bytes_data = file.getvalue()
     dst.write_bytes(bytes_data)
     return dst
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Samakan nama kolom ke schema pipeline dan buang kolom index otomatis."""
+    new_cols = []
+    for c in df.columns:
+        s = str(c).strip()
+        norm = re.sub(r'[\s\.\-]+', '', s).lower()
+
+        new = None
+        if norm == 'id':
+            new = 'ID'
+        elif norm in ('limitbal', 'limitbalance', 'limitamount', 'limit'):
+            new = 'LIMIT_BAL'
+        elif norm in ('defaultpaymentnextmonth', 'defaultpayment'):
+            new = 'default.payment.next.month'
+        else:
+            m = re.fullmatch(r'pay([0-6])', norm)
+            if m: new = f'PAY_{m.group(1)}'
+            if not new:
+                m = re.fullmatch(r'billamt([1-6])', norm)
+                if m: new = f'BILL_AMT{m.group(1)}'
+            if not new:
+                m = re.fullmatch(r'payamt([1-6])', norm)
+                if m: new = f'PAY_AMT{m.group(1)}'
+
+        new_cols.append(new if new else s)
+
+    df = df.rename(columns=dict(zip(df.columns, new_cols)))
+    drop_unnamed = [c for c in df.columns if str(c).startswith("Unnamed")]
+    if drop_unnamed:
+        df = df.drop(columns=drop_unnamed)
+    return df
+
+def _read_file_any(path: Path) -> pd.DataFrame:
+    suf = path.suffix.lower()
+    if suf == '.csv':
+        try:
+            df = pd.read_csv(path)
+        except Exception:
+            df = pd.read_csv(path, sep=';')
+        return _normalize_columns(df)
+
+    if suf in ('.xlsx', '.xls'):
+        # coba header=0 lalu header=1 (khusus UCI default xls biasanya header=1)
+        for hdr in (0, 1):
+            try:
+                df = pd.read_excel(path, header=hdr)
+                df = _normalize_columns(df)
+                if {'ID', 'LIMIT_BAL'}.issubset(df.columns):
+                    return df
+            except Exception:
+                pass
+        df = pd.read_excel(path, header=0)
+        return _normalize_columns(df)
+
+    if suf == '.parquet':
+        df = pd.read_parquet(path)
+        return _normalize_columns(df)
+
+    raise ValueError(f"Tipe file tidak didukung: {suf}")
 
 @st.cache_data(show_spinner=False)
 def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
     """
     Prioritas:
-    1) saved_path (jika ada),
-    2) sampel bawaan repo (jika ada),
-    3) raise error.
-    'source_hint' dan 'saved_path_str' dipakai sebagai key cache.
+    1) file tersimpan (upload terakhir),
+    2) sampel bawaan repo.
     """
     saved_path = Path(saved_path_str) if saved_path_str else None
     if saved_path and saved_path.exists():
-        if saved_path.suffix.lower() == ".csv":
-            return pd.read_csv(saved_path)
-        elif saved_path.suffix.lower() in [".xlsx", ".xls"]:
-            df = pd.read_excel(saved_path, header=1 if "default of credit card clients" in str(saved_path).lower() else 0)
-            # samakan nama kolom target bila ada
-            df = df.rename(columns={"default payment next month": "default.payment.next.month"})
-            return df
-        elif saved_path.suffix.lower() == ".parquet":
-            return pd.read_parquet(saved_path)
+        return _read_file_any(saved_path)
 
     # fallback: cari file sampel di repo (opsional)
     candidates = [
@@ -203,12 +253,7 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
     ]
     for p in candidates:
         if p.exists():
-            if p.suffix.lower()==".csv":
-                return pd.read_csv(p)
-            else:
-                df = pd.read_excel(p, header=1)
-                df = df.rename(columns={"default payment next month": "default.payment.next.month"})
-                return df
+            return _read_file_any(p)
 
     raise FileNotFoundError("Tidak ada data tersimpan maupun sampel bawaan. Silakan unggah file.")
 
@@ -528,8 +573,9 @@ uploaded = st.sidebar.file_uploader("Unggah data (CSV / XLS/XLSX)", type=["csv",
 if uploaded is not None:
     dst = _save_uploaded(uploaded)
     st.sidebar.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
-    # Bersihkan cache data supaya re-load
+    # Bersihkan cache dan rerun agar data baru langsung aktif
     st.cache_data.clear()
+    st.rerun()
 
 # Info sumber data yang sedang dipakai
 _saved = _saved_file_path()
