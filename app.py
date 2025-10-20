@@ -29,7 +29,7 @@ st.set_option("client.toolbarMode", "viewer")
 st.set_option("client.showSidebarNavigation", False)
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Global CSS + meta PWA ringan
+# Global CSS + meta PWA ringan (TANPA f-string)
 # ────────────────────────────────────────────────────────────────────────────────
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,9 +41,11 @@ font_link = """
 <meta name="theme-color" content="#0ea5e9">
 """
 
-GLOBAL_CSS = f"""{font_link}
+GLOBAL_CSS = (
+    font_link
+    + """
 <style>
-:root {{
+:root {
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
   /* default (light) */
@@ -52,44 +54,44 @@ GLOBAL_CSS = f"""{font_link}
   --navy:#0f1e33;           /* biru tua utama */
   --navy-ink:#eaf2ff;       /* putih kebiruan untuk teks di atas navy */
   --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
-}}
-@media (prefers-color-scheme: dark) {{
-  :root {{
+}
+@media (prefers-color-scheme: dark) {
+  :root {
     --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af;
     --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
     --navy:#0f1e33;          /* tetap konsisten */
     --navy-ink:#ffffff;
     --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
-  }}
-}}
+  }
+}
 /* Pastikan SELURUH permukaan ikut berubah warna */
 html, body,
-[data-testid="stAppViewContainer"], .main, .block-container {{
+[data-testid="stAppViewContainer"], .main, .block-container {
   background: var(--bg) !important; color: var(--fg) !important;
-}}
+}
 /* Sembunyikan HANYA ikon keyboard_* yang tidak dibutuhkan */
 span[aria-label="keyboard_double_arrow_right"],
 span[aria-label="keyboard_arrow_right"],
 span[aria-label="keyboard_double_arrow_left"],
-span[aria-label="keyboard_arrow_left"] {{
+span[aria-label="keyboard_arrow_left"] {
   font-size:0 !important; line-height:0 !important; visibility:hidden !important;
-}}
+}
 /* Tipografi umum */
-[data-testid="stAppViewContainer"] * {{
+[data-testid="stAppViewContainer"] * {
   font-family: var(--font-body) !important;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   color: var(--fg);
-}}
+}
 /* Paksa visibilitas: tidak ada opacity redup di dark mode */
-h1,h2,h3,h4, p, li, label, .stMarkdown, .stMarkdown p, .stText, .stCaption {{
+h1,h2,h3,h4, p, li, label, .stMarkdown, .stMarkdown p, .stText, .stCaption {
   color: var(--fg) !important; opacity: 1 !important;
-}}
-h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
-.legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
-.small-note {{ color: var(--muted) !important; }}
+}
+h1,h2,h3,h4 { font-weight:600; letter-spacing:.2px; }
+.legal-text { font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }
+.small-note { color: var(--muted) !important; }
 
 /* Kontainer & tombol */
-.block-container {{ padding-top:1.2rem !important; padding-bottom:2rem !important; }}
+.block-container { padding-top:1.2rem !important; padding-bottom:2rem !important; }
 .stDownloadButton > button, .stButton > button {
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -106,46 +108,46 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
 /* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
-div[data-testid="stToolbar"], div[data-testid="stStatusWidget"] {{
+div[data-testid="stToolbar"], div[data-testid="stStatusWidget"] {
   display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
-}}
+}
 
 /* Sembunyikan hanya dekorasi/footer default Streamlit, tapi biarkan Chat Input terlihat */
-footer {{ display:block !important; visibility:visible !important; height:auto !important; }}
-footer [data-testid="stDecoration"] {{ display:none !important; }}
-footer .stAppDeployButton {{ display:none !important; }}
+footer { display:block !important; visibility:visible !important; height:auto !important; }
+footer [data-testid="stDecoration"] { display:none !important; }
+footer .stAppDeployButton { display:none !important; }
 
 /* Paksa Chat Input kelihatan dan mengikuti tema */
-footer [data-testid="stChatInput"] {{
+footer [data-testid="stChatInput"] {
   display:flex !important; visibility:visible !important; opacity:1 !important;
-}}
+}
 
 /* ===== Theming Chat Input agar selaras ===== */
-footer {{ background: var(--bg) !important; border-top: 1px solid var(--border) !important; box-shadow: none !important; }}
-footer [data-testid="stChatInput"] {{ max-width: 1100px; margin: 0 auto; padding: 8px 0 16px; }}
-footer [data-testid="stChatInput"] > div {{
+footer { background: var(--bg) !important; border-top: 1px solid var(--border) !important; box-shadow: none !important; }
+footer [data-testid="stChatInput"] { max-width: 1100px; margin: 0 auto; padding: 8px 0 16px; }
+footer [data-testid="stChatInput"] > div {
   background: var(--card) !important;
   border: 1.5px solid var(--border) !important;
   border-radius: 12px !important;
   padding: 6px 8px !important;
-}}
+}
 footer [data-testid="stChatInput"] textarea,
 footer [data-testid="stChatInput"] input,
-footer [data-testid="stChatInput"] div[contenteditable="true"] {{
+footer [data-testid="stChatInput"] div[contenteditable="true"] {
   background: transparent !important; color: var(--fg) !important; caret-color: var(--accent) !important;
   border: none !important; outline: none !important; box-shadow: none !important;
-}}
+}
 footer [data-testid="stChatInput"] textarea::placeholder,
-footer [data-testid="stChatInput"] input::placeholder {{ color: var(--muted) !important; opacity: .95 !important; }}
-footer [data-testid="stChatInput"] button {{ background: var(--accent) !important; color:#fff !important; border:1px solid var(--border) !important; border-radius:10px !important; }}
-footer [data-testid="stChatInput"] button svg {{ color:#fff !important; fill: currentColor !important; }}
+footer [data-testid="stChatInput"] input::placeholder { color: var(--muted) !important; opacity: .95 !important; }
+footer [data-testid="stChatInput"] button { background: var(--accent) !important; color:#fff !important; border:1px solid var(--border) !important; border-radius:10px !important; }
+footer [data-testid="stChatInput"] button svg { color:#fff !important; fill: currentColor !important; }
 
 /* Focus ring saat mengetik + ruang bawah konten */
-footer [data-testid="stChatInput"] > div:focus-within {{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent) !important; }}
-.block-container {{ padding-bottom: 3.25rem !important; }}
-footer [data-testid="stChatInput"] * {{
+footer [data-testid="stChatInput"] > div:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent) !important; }
+.block-container { padding-bottom: 3.25rem !important; }
+footer [data-testid="stChatInput"] * {
   color: var(--fg) !important;
-}}
+}
 
 /* ====== Panel Navy (Chatbot & wrapper) ====== */
 .panel-navy {
@@ -203,54 +205,54 @@ footer [data-testid="stChatInput"] * {{
 .panel-navy svg { color: var(--navy-ink) !important; fill: currentColor !important; }
 
 /* Gelembung setiap pesan (user & assistant) */
-[data-testid="stChatMessage"] > div {{
+[data-testid="stChatMessage"] > div {
   background: color-mix(in srgb, var(--navy) 88%, transparent) !important;
   border: 1px solid color-mix(in srgb, var(--navy) 70%, var(--border)) !important;
   border-radius: 12px !important;
   color: var(--navy-ink) !important;
-}}
-[data-testid="stChatMessage"] * {{
+}
+[data-testid="stChatMessage"] * {
   color: var(--navy-ink) !important;
-}}
+}
 
 /* Header & caption di blok Chatbot Koleksi ikut terang di atas navy */
-h3:has(+ p) {{ color: var(--fg) !important; }}
+h3:has(+ p) { color: var(--fg) !important; }
 
 /* Tombol di dalam panel chat: putih bersih di atas navy */
 [data-testid="stChatMessageContainer"] button,
 [data-testid="stChatMessage"] button,
-section[aria-label="chat"] button {{
+section[aria-label="chat"] button {
   background: transparent !important;
   color: var(--navy-ink) !important;
   border: 1px solid color-mix(in srgb, var(--navy) 65%, var(--border)) !important;
   border-radius: 10px !important;
-}}
+}
 section[aria-label="chat"] button:hover,
-[data-testid="stChatMessage"] button:hover {{
+[data-testid="stChatMessage"] button:hover {
   background: color-mix(in srgb, var(--navy) 30%, transparent) !important;
-}}
+}
 
 /* Icon kirim/chevron di area itu juga putih */
 section[aria-label="chat"] svg,
-[data-testid="stChatMessage"] svg {{
+[data-testid="stChatMessage"] svg {
   color: var(--navy-ink) !important;
   fill: currentColor !important;
-}}
+}
 
 /* Link di dalam panel chat: toned-down putih */
 section[aria-label="chat"] a,
-[data-testid="stChatMessage"] a {{
+[data-testid="stChatMessage"] a {
   color: var(--navy-ink) !important;
   text-decoration: underline dotted;
   text-underline-offset: 3px;
   opacity: .95;
-}}
-section[aria-label="chat"] a:hover {{ opacity: 1; }}
+}
+section[aria-label="chat"] a:hover { opacity: 1; }
 
 /* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
-[data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {{
+[data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {
   display:none !important; visibility:hidden !important;
-}}
+}
 
 /* TABEL: kontras tinggi */
 # --- CSS (lanjutan di GLOBAL_CSS) ---
@@ -283,9 +285,14 @@ input, select, textarea, .stNumberInput input, .stTextInput input {
   h1 { font-size:1.55rem !important; }
   h2 { font-size:1.25rem !important; }
   .stDownloadButton { width:100% !important; }
-}}
+}
 </style>
 """
+)
+
+# Jika sebelumnya Anda pernah menulis CSS dengan double-braces, normalkan ke single:
+GLOBAL_CSS = GLOBAL_CSS.replace("{{", "{").replace("}}", "}")
+
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
