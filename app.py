@@ -43,7 +43,7 @@ font_link = """
 
 GLOBAL_CSS = f"""{font_link}
 <style>
-:root {
+:root {{
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
   /* default (light) */
@@ -52,16 +52,16 @@ GLOBAL_CSS = f"""{font_link}
   --navy:#0f1e33;           /* biru tua utama */
   --navy-ink:#eaf2ff;       /* putih kebiruan untuk teks di atas navy */
   --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{
     --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af;
     --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
     --navy:#0f1e33;          /* tetap konsisten */
     --navy-ink:#ffffff;
     --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
-  }
-}
+  }}
+}}
   --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
   --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
 }}
