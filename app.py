@@ -306,6 +306,7 @@ input, select, textarea, .stNumberInput input, .stTextInput input {
 GLOBAL_CSS = GLOBAL_CSS.replace("{{", "{").replace("}}", "}")
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
+
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
 st.markdown("""
 <style>
@@ -330,6 +331,24 @@ st.markdown("""
 [data-testid="stSelectbox"] svg { color: var(--fg) !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# === CSS panel navy berdasar anchor ===
+st.markdown("""
+<style>
+/* Panel navy: container tepat setelah anchor */
+#chatpanel-anchor + div[data-testid="stVerticalBlock"] {
+  background: color-mix(in srgb, var(--navy) 92%, white 8%) !important;
+  border: 1px solid color-mix(in srgb, var(--navy) 50%, var(--border)) !important;
+  border-radius: 16px !important;
+  padding: 20px 18px !important;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--navy) 18%, transparent);
+}
+#chatpanel-anchor + div[data-testid="stVerticalBlock"] * {
+  color: var(--navy-ink) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
@@ -983,84 +1002,86 @@ try:
     # ======================================================================
     # Chatbot Koleksi
     # ======================================================================
+
+    # Anchor untuk menarget container berikutnya dengan CSS
     st.markdown("<div id='chatpanel-anchor'></div>", unsafe_allow_html=True)
-    st.subheader("Chatbot Koleksi")
-    st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
 
-    # state riwayat
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = []
+    with st.container():  # <— PASTIKAN ada ":" dan seluruh isi diindent
+        st.subheader("Chatbot Koleksi")
+        st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
 
-    use_ctx = st.checkbox(
-        "Sertakan konteks ID saat ini",
-        value=True,
-        help="Pertanyaan akan disertai ringkasan variabel ID yang sedang dipilih."
-    )
+        # state riwayat
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = []
 
-    # tampilkan riwayat
-    for msg in st.session_state.chat_messages:
-        role = "user" if msg["role"] == "user" else "assistant"
-        with st.chat_message(role):
-            st.markdown(_sanitize_plain(msg["parts"][0]["text"]))
-
-    # input pengguna
-    user_prompt = st.chat_input("Ketik pertanyaan…")
-    if user_prompt:
-        preamble = (
-            "Anda adalah asisten koleksi internal. Jawab ringkas dalam bahasa Indonesia formal. "
-            "Hindari simbol khusus seperti pagar, bintang, dash, koma, titik dua. "
-            "Jika perlu menyebut pasal, gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
+        use_ctx = st.checkbox(
+            "Sertakan konteks ID saat ini",
+            value=True,
+            help="Pertanyaan akan disertai ringkasan variabel ID yang sedang dipilih."
         )
-        ctx_obj = {
-            "ID": int(row_raw.get("ID")),
-            "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
-            "edrs_score": int(row_skor.get("edrs_score")),
-            "bucket": str(row_skor.get("bucket")),
-            "count_telat_3m": int(row_skor.get("count_telat_3m")),
-            "count_telat_6m": int(row_skor.get("count_telat_6m")),
-            "max_tunggakan_6m": int(row_skor.get("max_tunggakan_6m")),
-            "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
-            "bill_trend_up": bool(row_skor.get("bill_trend_up")),
-            "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
-        }
-        ctx_text = f"\\n\\nKonteks saat ini:\\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
 
-        # siapkan riwayat untuk API
-        history = st.session_state.chat_messages.copy()
-        if not history:
-            history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
-        else:
-            if use_ctx:
-                history.append({"role": "user", "parts": [{"text": ctx_text}]})
+        # tampilkan riwayat
+        for msg in st.session_state.chat_messages:
+            role = "user" if msg["role"] == "user" else "assistant"
+            with st.chat_message(role):
+                st.markdown(_sanitize_plain(msg["parts"][0]["text"]))
 
-        # tambahkan pesan user
-        history.append({"role": "user", "parts": [{"text": user_prompt}]})
-        st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
-
-        # panggil LLM
-        with st.chat_message("assistant"):
-            with st.spinner("Menjawab…"):
-                reply = _call_gemini_chat(history)
-                reply_clean = _sanitize_plain(reply)
-                st.markdown(reply_clean)
-        st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
-
-    # kontrol tambahan
-    col_clear, col_copy = st.columns(2)
-    if col_clear.button("🧹 Bersihkan Riwayat"):
-        st.session_state.chat_messages = []
-        st.rerun()
-    if col_copy.button("📋 Salin Ringkas"):
-        try:
-            st.code(
-                "\\n\\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
-                language="markdown"
+        # input pengguna
+        user_prompt = st.chat_input("Ketik pertanyaan…")
+        if user_prompt:
+            preamble = (
+                "Anda adalah asisten koleksi internal. Jawab ringkas dalam bahasa Indonesia formal. "
+                "Hindari simbol khusus seperti pagar, bintang, dash, koma, titik dua. "
+                "Jika perlu menyebut pasal, gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
             )
-        except Exception:
-            pass
-    with st.container():   # semua isi Chatbot ada di dalam container ini
-    st.subheader("Chatbot Koleksi")
-    st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
+            ctx_obj = {
+                "ID": int(row_raw.get("ID")),
+                "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
+                "edrs_score": int(row_skor.get("edrs_score")),
+                "bucket": str(row_skor.get("bucket")),
+                "count_telat_3m": int(row_skor.get("count_telat_3m")),
+                "count_telat_6m": int(row_skor.get("count_telat_6m")),
+                "max_tunggakan_6m": int(row_skor.get("max_tunggakan_6m")),
+                "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
+                "bill_trend_up": bool(row_skor.get("bill_trend_up")),
+                "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
+            }
+            ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
+
+            # siapkan riwayat untuk API
+            history = st.session_state.chat_messages.copy()
+            if not history:
+                history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
+            else:
+                if use_ctx:
+                    history.append({"role": "user", "parts": [{"text": ctx_text}]})
+
+            # tambahkan pesan user
+            history.append({"role": "user", "parts": [{"text": user_prompt}]})
+            st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
+
+            # panggil LLM
+            with st.chat_message("assistant"):
+                with st.spinner("Menjawab…"):
+                    reply = _call_gemini_chat(history)
+                    reply_clean = _sanitize_plain(reply)
+                    st.markdown(reply_clean)
+            st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
+
+        # kontrol tambahan
+        col_clear, col_copy = st.columns(2)
+        if col_clear.button("🧹 Bersihkan Riwayat"):
+            st.session_state.chat_messages = []
+            st.rerun()
+        if col_copy.button("📋 Salin Ringkas"):
+            try:
+                st.code(
+                    "\n\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
+                    language="markdown"
+                )
+            except Exception:
+                pass
+
 
 except Exception as e:
     log.exception("Top-level failure")
