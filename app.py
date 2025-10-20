@@ -48,13 +48,20 @@ GLOBAL_CSS = (
 :root {
   --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --fs-base: 13.5px;
-  /* default (light) */
+  /* Light theme only (forced) */
   --bg:#ffffff; --fg:#111827; --muted:#4b5563;
   --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
-  --navy:#0f1e33;           /* biru tua utama */
-  --navy-ink:#eaf2ff;       /* putih kebiruan untuk teks di atas navy */
+  --navy:#0f1e33;
+  --navy-ink:#ffffff;         /* teks chat dibuat putih agar lebih kontras */
   --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
 }
+
+/* Pastikan SELURUH permukaan ikut warna dasar */
+html, body,
+[data-testid="stAppViewContainer"], .main, .block-container {
+  background: var(--bg) !important; color: var(--fg) !important;
+}
+
 /* Sembunyikan HANYA ikon keyboard_* yang tidak dibutuhkan */
 span[aria-label="keyboard_double_arrow_right"],
 span[aria-label="keyboard_arrow_right"],
@@ -62,18 +69,18 @@ span[aria-label="keyboard_double_arrow_left"],
 span[aria-label="keyboard_arrow_left"] {
   font-size:0 !important; line-height:0 !important; visibility:hidden !important;
 }
+
 /* Tipografi umum */
 [data-testid="stAppViewContainer"] * {
   font-family: var(--font-body) !important;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   color: var(--fg);
 }
-/* Paksa visibilitas: tidak ada opacity redup di dark mode */
 h1,h2,h3,h4, p, li, label, .stMarkdown, .stMarkdown p, .stText, .stCaption {
   color: var(--fg) !important; opacity: 1 !important;
 }
 h1,h2,h3,h4 { font-weight:600; letter-spacing:.2px; }
-.legal-text { font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }
+.legal-text { font-size:var(--fs-base); line-height:1.65; letter-spacing:.1px; }
 .small-note { color: var(--muted) !important; }
 
 /* Kontainer & tombol */
@@ -81,41 +88,28 @@ h1,h2,h3,h4 { font-weight:600; letter-spacing:.2px; }
 .stDownloadButton > button, .stButton > button {
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--accent) 92%, white 8%); /* sedikit dilunakkan */
+  background: color-mix(in srgb, var(--accent) 92%, white 8%);
   color: white;
   transition: box-shadow .18s ease, transform .06s ease;
 }
 .stDownloadButton > button:hover, .stButton > button:hover {
   box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
 }
-.stDownloadButton > button:active, .stButton > button:active {
-  transform: translateY(1px);
-}
+.stDownloadButton > button:active, .stButton > button:active { transform: translateY(1px); }
+
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
-/* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
 div[data-testid="stToolbar"], div[data-testid="stStatusWidget"] {
   display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
 }
 
-/* Sembunyikan hanya dekorasi/footer default Streamlit, tapi biarkan Chat Input terlihat */
-footer { display:block !important; visibility:visible !important; height:auto !important; }
-footer [data-testid="stDecoration"] { display:none !important; }
-footer .stAppDeployButton { display:none !important; }
-
-/* Paksa Chat Input kelihatan dan mengikuti tema */
-footer [data-testid="stChatInput"] {
-  display:flex !important; visibility:visible !important; opacity:1 !important;
-}
-
-/* ===== Theming Chat Input agar selaras ===== */
-footer { background: var(--bg) !important; border-top: 1px solid var(--border) !important; box-shadow: none !important; }
-footer [data-testid="stChatInput"] { max-width: 1100px; margin: 0 auto; padding: 8px 0 16px; }
+/* Footer dan Chat Input */
+footer { display:block !important; visibility:visible !important; height:auto !important;
+         background: var(--bg) !important; border-top: 1px solid var(--border) !important; box-shadow: none !important; }
+footer [data-testid="stDecoration"], footer .stAppDeployButton { display:none !important; }
+footer [data-testid="stChatInput"] { max-width: 1100px; margin: 0 auto; padding: 8px 0 16px; display:flex !important; }
 footer [data-testid="stChatInput"] > div {
-  background: var(--card) !important;
-  border: 1.5px solid var(--border) !important;
-  border-radius: 12px !important;
-  padding: 6px 8px !important;
+  background: var(--card) !important; border: 1.5px solid var(--border) !important; border-radius: 12px !important; padding: 6px 8px !important;
 }
 footer [data-testid="stChatInput"] textarea,
 footer [data-testid="stChatInput"] input,
@@ -123,34 +117,35 @@ footer [data-testid="stChatInput"] div[contenteditable="true"] {
   background: transparent !important; color: var(--fg) !important; caret-color: var(--accent) !important;
   border: none !important; outline: none !important; box-shadow: none !important;
 }
+/* Netralisir border merah yang kadang muncul */
+footer [data-testid="stChatInput"] > div:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent) !important; border-color: var(--accent) !important; }
 footer [data-testid="stChatInput"] textarea::placeholder,
 footer [data-testid="stChatInput"] input::placeholder { color: var(--muted) !important; opacity: .95 !important; }
 footer [data-testid="stChatInput"] button { background: var(--accent) !important; color:#fff !important; border:1px solid var(--border) !important; border-radius:10px !important; }
 footer [data-testid="stChatInput"] button svg { color:#fff !important; fill: currentColor !important; }
-
-/* Focus ring saat mengetik + ruang bawah konten */
-footer [data-testid="stChatInput"] > div:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent) !important; }
 .block-container { padding-bottom: 3.25rem !important; }
-footer [data-testid="stChatInput"] * {
-  color: var(--fg) !important;
-}
 
 /* ====== Panel Navy (Chatbot & wrapper) ====== */
 .panel-navy {
-  background: color-mix(in srgb, var(--navy) 96%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--navy) 65%, var(--border)) !important;
+  background: color-mix(in srgb, var(--navy) 92%, white 8%) !important;  /* sedikit lebih terang agar profesional */
+  border: 1px solid color-mix(in srgb, var(--navy) 50%, var(--border)) !important;
   border-radius: 16px !important;
-  padding: 18px 16px !important;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--navy) 20%, transparent);
+  padding: 20px 18px !important;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--navy) 18%, transparent);
 }
 
-/* Paksa semua teks/ikon di dalam panel jadi tinta cerah */
+/* Hilangkan 'baris oval' dekoratif/garis horizontal apapun yang mungkin muncul di atas judul */
+.panel-navy hr,
+.panel-navy [role="progressbar"],
+.panel-navy .stMarkdown:has(hr) { display:none !important; }
+
+/* Semua teks/ikon dalam panel navy dibuat kontras tinggi */
 .panel-navy *, .panel-navy h3, .panel-navy p, .panel-navy label,
 .panel-navy .stMarkdown, .panel-navy .stCaption {
   color: var(--navy-ink) !important; opacity: 1 !important;
 }
 
-/* Checkbox & select di dalam panel */
+/* Checkbox & input di dalam panel */
 .panel-navy [data-testid="stTickBar"], 
 .panel-navy [data-baseweb="checkbox"] label,
 .panel-navy [data-testid="stSelectbox"] div[role="combobox"],
@@ -167,44 +162,30 @@ footer [data-testid="stChatInput"] * {
   border: 1px solid color-mix(in srgb, var(--navy) 55%, var(--border)) !important;
   border-radius: 12px !important;
 }
-.panel-navy .stButton > button:hover {
-  background: color-mix(in srgb, var(--navy) 22%, transparent) !important;
-}
+.panel-navy .stButton > button:hover { background: color-mix(in srgb, var(--navy) 22%, transparent) !important; }
 
-/* Area container Streamlit untuk chat message */
+/* Area container chat message */
 .panel-navy section[aria-label="chat"],
 .panel-navy [data-testid="stChatMessageContainer"] {
-  background: transparent !important;  /* kita sudah kasih latar di .panel-navy */
+  background: transparent !important;
   border: none !important;
   padding: 0 !important;
 }
 
-/* Gelembung setiap pesan (user & assistant) */
+/* Gelembung pesan (user & assistant) – buat lebih cerah dan teks jelas */
 .panel-navy [data-testid="stChatMessage"] > div {
-  background: color-mix(in srgb, var(--navy) 88%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--navy) 60%, var(--border)) !important;
+  background: color-mix(in srgb, var(--navy) 78%, white 22%) !important;
+  border: 1px solid color-mix(in srgb, var(--navy) 62%, var(--border)) !important;
   border-radius: 12px !important;
 }
+.panel-navy [data-testid="stChatMessage"] * { color: var(--navy-ink) !important; }
+.panel-navy [data-testid="stChatMessage"] p { margin-bottom: .25rem !important; line-height: 1.55 !important; }
 
 /* Link dan ikon di panel */
 .panel-navy a { color: var(--navy-ink) !important; text-decoration: underline dotted; }
 .panel-navy svg { color: var(--navy-ink) !important; fill: currentColor !important; }
 
-/* Gelembung setiap pesan (user & assistant) */
-[data-testid="stChatMessage"] > div {
-  background: color-mix(in srgb, var(--navy) 88%, transparent) !important;
-  border: 1px solid color-mix(in srgb, var(--navy) 70%, var(--border)) !important;
-  border-radius: 12px !important;
-  color: var(--navy-ink) !important;
-}
-[data-testid="stChatMessage"] * {
-  color: var(--navy-ink) !important;
-}
-
-/* Header & caption di blok Chatbot Koleksi ikut terang di atas navy */
-h3:has(+ p) { color: var(--fg) !important; }
-
-/* Tombol di dalam panel chat: putih bersih di atas navy */
+/* Tombol di dalam panel chat */
 [data-testid="stChatMessageContainer"] button,
 [data-testid="stChatMessage"] button,
 section[aria-label="chat"] button {
@@ -214,40 +195,24 @@ section[aria-label="chat"] button {
   border-radius: 10px !important;
 }
 section[aria-label="chat"] button:hover,
-[data-testid="stChatMessage"] button:hover {
-  background: color-mix(in srgb, var(--navy) 30%, transparent) !important;
-}
+[data-testid="stChatMessage"] button:hover { background: color-mix(in srgb, var(--navy) 30%, transparent) !important; }
 
 /* Icon kirim/chevron di area itu juga putih */
 section[aria-label="chat"] svg,
-[data-testid="stChatMessage"] svg {
-  color: var(--navy-ink) !important;
-  fill: currentColor !important;
-}
+[data-testid="stChatMessage"] svg { color: var(--navy-ink) !important; fill: currentColor !important; }
 
-/* Link di dalam panel chat: toned-down putih */
-section[aria-label="chat"] a,
-[data-testid="stChatMessage"] a {
-  color: var(--navy-ink) !important;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  opacity: .95;
-}
-section[aria-label="chat"] a:hover { opacity: 1; }
-
-/* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
+/* Sembunyikan tombol collapse sidebar */
 [data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {
   display:none !important; visibility:hidden !important;
 }
 
 /* TABEL: kontras tinggi */
-# --- CSS (lanjutan di GLOBAL_CSS) ---
 .stDataFrame {
   background: var(--card) !important;
   border: 1.5px solid var(--border) !important;
-  border-radius: 14px !important;                 /* was 12px */
+  border-radius: 14px !important;
   padding: .25rem !important;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--fg) 6%, transparent); /* subtle depth */
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--fg) 6%, transparent);
 }
 .stDataFrame table { font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }
 .stDataFrame thead tr th {
@@ -278,65 +243,32 @@ input, select, textarea, .stNumberInput input, .stTextInput input {
 
 # Jika sebelumnya Anda pernah menulis CSS dengan double-braces, normalkan ke single:
 GLOBAL_CSS = GLOBAL_CSS.replace("{{", "{").replace("}}", "}")
-
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
-st.markdown("""
+st.markdown(\"\"\"
 <style>
 /* Bungkus utama komponen */
-.stFileUploader, [data-testid="stFileUploader"] * {
-  color: var(--fg) !important;
-}
-
+.stFileUploader, [data-testid="stFileUploader"] * { color: var(--fg) !important; }
 /* Kotak dropzone */
 [data-testid="stFileUploaderDropzone"]{
-  background: var(--card) !important;
-  border: 1.5px dashed var(--accent) !important;
-  border-radius: 12px !important;  /* boleh dinaikkan ke 14px jika ingin seragam */
+  background: var(--card) !important; border: 1.5px dashed var(--accent) !important; border-radius: 12px !important;
 }
 [data-testid="stFileUploaderDropzone"]:hover,
 [data-testid="stFileUploaderDropzone"]:focus-within{
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent) !important;
+  border-color: var(--accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent) !important;
 }
-
-/* Teks utama & subteks di dalam dropzone */
-[data-testid="stFileUploaderDropzone"] *{
-  color: var(--fg) !important;
-  opacity: 1 !important;
-}
-[data-testid="stFileUploaderDropzone"] p,
-[data-testid="stFileUploaderDropzone"] span{
-  font-size: calc(var(--fs-base) * 0.95) !important;
-}
-[data-testid="stFileUploaderDropzone"] p:first-child{
-  font-weight: 600 !important;            /* "Drag and drop file here" */
-  font-size: calc(var(--fs-base) * 1.0) !important;
-}
-
+[data-testid="stFileUploaderDropzone"] *{ color: var(--fg) !important; opacity: 1 !important; }
+[data-testid="stFileUploaderDropzone"] p, [data-testid="stFileUploaderDropzone"] span{ font-size: calc(var(--fs-base) * 0.95) !important; }
+[data-testid="stFileUploaderDropzone"] p:first-child{ font-weight: 600 !important; font-size: calc(var(--fs-base) * 1.0) !important; }
 /* Tombol "Browse files" */
-.stFileUploader > div [role="button"]{
-  background: var(--accent) !important;
-  color: #fff !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 10px !important;
-}
-
-/* ===== Selectbox "Tema" agar terlihat jelas di Light/Dark ===== */
-[data-testid="stSelectbox"] label,
-[data-testid="stSelectbox"] div[role="combobox"],
-[data-testid="stSelectbox"] div[role="combobox"] * {
-  color: var(--fg) !important;
-}
-[data-testid="stSelectbox"] div[role="combobox"] {
-  border-color: var(--border) !important;
-}
-[data-testid="stSelectbox"] svg {
-  color: var(--fg) !important;
-}
+.stFileUploader > div [role="button"]{ background: var(--accent) !important; color: #fff !important; border: 1px solid var(--border) !important; border-radius: 10px !important; }
+/* Selectbox label/ikon */
+[data-testid="stSelectbox"] label, [data-testid="stSelectbox"] div[role="combobox"], [data-testid="stSelectbox"] div[role="combobox"] * { color: var(--fg) !important; }
+[data-testid="stSelectbox"] div[role="combobox"] { border-color: var(--border) !important; }
+[data-testid="stSelectbox"] svg { color: var(--fg) !important; }
 </style>
-""", unsafe_allow_html=True)
+\"\"\", unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
@@ -446,16 +378,16 @@ def _call_gemini_chat(history: list[dict], timeout: int = 40) -> str:
         return "Maaf, layanan percakapan sedang tidak tersedia."
 
 def _sanitize_plain(text: str) -> str:
-    t = re.sub(r'^\s*#{1,6}\s*', '', text, flags=re.MULTILINE)
+    t = re.sub(r'^\\s*#{1,6}\\s*', '', text, flags=re.MULTILINE)
     t = t.replace('**', '')
-    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)
-    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\\s*[-*•]\\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\\s*\\d+\\.\\s+', '', t, flags=re.MULTILINE)
     t = t.replace('*','').replace('_','').replace('—',' ')
     t = t.replace(';', ',').replace(':', ' ')
-    t = re.sub(r'[ \t]+',' ', t)
-    t = re.sub(r'\n{3,}','\n\n', t)
-    t = re.sub(r'\bini\s+adalah\s+ringkasan\s+internal\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
-    t = re.sub(r'\bbukan\s+pendapat\s+hukum\s+final\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'[ \\t]+',' ', t)
+    t = re.sub(r'\\n{3,}','\\n\\n', t)
+    t = re.sub(r'\\bini\\s+adalah\\s+ringkasan\\s+internal\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'\\bbukan\\s+pendapat\\s+hukum\\s+final\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
     return t.strip()
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -480,7 +412,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     new_cols = []
     for c in df.columns:
         s = str(c).strip()
-        norm = re.sub(r'[\s\.\-]+', '', s).lower()
+        norm = re.sub(r'[\\s\\.\\-]+', '', s).lower()
         new = None
         if norm == 'id': new = 'ID'
         elif norm in ('limitbal','limitbalance','limitamount','limit'): new = 'LIMIT_BAL'
@@ -699,7 +631,7 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
         "next_best_action": str(row_skor.get("next_best_action")),
     }
     ctx_json = json.dumps(ctx, ensure_ascii=False)
-    return textwrap.dedent(f"""
+    return textwrap.dedent(f\"\"\"
     Anda adalah analis hukum internal untuk Indonesia.
     Tulis satu paragraf naratif yang langsung ke inti tanpa heading, tanpa bullet, dan tanpa simbol khusus seperti # * - — , ; :.
     Gunakan 7 sampai 12 kalimat, Bahasa Indonesia formal, ringkas dan jelas.
@@ -712,11 +644,11 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
 
     Data konteks JSON:
     {ctx_json}
-    """)
+    \"\"\")
 
 def _build_prompt_step2(draft1_text: str) -> str:
     canon = json.dumps(ALLOWED_PASAL, ensure_ascii=False, indent=2)
-    return textwrap.dedent(f"""
+    return textwrap.dedent(f\"\"\"
     Anda melanjutkan draf naratif berikut dari Tahap 1.
     Hasil akhir harus berupa satu paragraf natural, tanpa heading, tanpa daftar, dan tanpa simbol # * - — , ; :.
     Masukkan rujukan pasal HANYA dari daftar kanonik di bawah ini, ditulis natural di dalam kalimat (misal: berdasarkan KUHPerdata Pasal 1238).
@@ -732,7 +664,7 @@ def _build_prompt_step2(draft1_text: str) -> str:
 
     Draf Tahap 1:
     {draft1_text}
-    """)
+    \"\"\")
 
 def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     sig = _insight_signature(id_val, insight_text)
@@ -846,30 +778,23 @@ show_bucket_only = st.sidebar.multiselect(
 # ────────────────────────────────────────────────────────────────────────────────
 # Kontrol aksesibilitas UI — FORCE LIGHT THEME (tanpa opsi)
 # ────────────────────────────────────────────────────────────────────────────────
-
-# Hilangkan selectbox tema. Cukup skala UI saja.
 ui_scale = st.sidebar.slider(
     "Skala UI", min_value=90, max_value=120, value=105, step=5,
     help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%)."
 )
-
-# Variabel CSS untuk Light theme (tetap)
 LIGHT_THEME_VARS = """
         --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
         --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead: #f3f4f6;
 """
-
 _ui_fs = round(13.5 * ui_scale / 100, 2)
 
-# Paksa :root selalu pakai Light + set color-scheme ke light agar kontrol native ikut terang.
-st.markdown("""
+st.markdown(\"\"\"
 <style>
 :root {{
   color-scheme: light !important;
   --fs-base: {ui_fs}px;
   {theme_vars}
 }}
-/* Kalau OS user dark mode, tetap paksa var yang sama (Light) */
 @media (prefers-color-scheme: dark) {{
   :root {{
     color-scheme: light !important;
@@ -878,9 +803,9 @@ st.markdown("""
   }}
 }}
 </style>
-""".format(ui_fs=_ui_fs, theme_vars=LIGHT_THEME_VARS), unsafe_allow_html=True)
+\"\"\".format(ui_fs=_ui_fs, theme_vars=LIGHT_THEME_VARS), unsafe_allow_html=True)
 
-# Mode mobile (ringkas kolom) tetap ada
+# Mode mobile (ringkas kolom)
 mobile_compact = st.sidebar.toggle(
     "Mode Mobile (ringkas kolom)", value=True,
     help="Saat aktif, tabel utama menampilkan kolom inti agar nyaman di layar HP."
@@ -1033,7 +958,7 @@ try:
             "bill_trend_up": bool(row_skor.get("bill_trend_up")),
             "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
         }
-        ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
+        ctx_text = f"\\n\\nKonteks saat ini:\\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
 
         # siapkan riwayat untuk API
         history = st.session_state.chat_messages.copy()
@@ -1063,7 +988,7 @@ try:
     if col_copy.button("📋 Salin Ringkas"):
         try:
             st.code(
-                "\n\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
+                "\\n\\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
                 language="markdown"
             )
         except Exception:
