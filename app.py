@@ -1039,15 +1039,15 @@ try:
 )
 
     # ======================================================================
-    # Chatbot Koleksi
+    # Chatbot Koleksi (Hybrid tone)
     # ======================================================================
 
     # Anchor untuk menarget container berikutnya dengan CSS
     st.markdown("<div id='chatpanel-anchor'></div>", unsafe_allow_html=True)
 
-    with st.container():  # <— PASTIKAN ada ":" dan seluruh isi diindent
+    with st.container():
         st.subheader("Chatbot Koleksi")
-        st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
+        st.caption("Tanya jawab terkait data di atas, kebijakan, dan langkah penanganan. Nada hybrid: hangat tapi tetap fokus solusi.")
 
         # state riwayat
         if "chat_messages" not in st.session_state:
@@ -1063,26 +1063,23 @@ try:
         for msg in st.session_state.chat_messages:
             role = "user" if msg["role"] == "user" else "assistant"
             with st.chat_message(role):
-                st.markdown(_sanitize_plain(msg["parts"][0]["text"]))
+                st.markdown(_sanitize_chat(msg["parts"][0]["text"]))
 
-        if tone == "Ramah empatik":
-            preamble = (
-                "Anda asisten koleksi internal dengan pendekatan hangat dan empatik. "
-                "Tujuan utama: dengarkan dulu, validasi perasaan, lalu bantu cari langkah praktis. "
-                "Gunakan bahasa Indonesia sehari-hari yang sopan, kalimat pendek, tidak menggurui. "
-                "Boleh gunakan koma, tanda titik dua seperlunya, dan kalimat tanya terbuka. "
-                "Tetap sesuai koridor: tidak menyarankan tindakan melawan hukum atau intimidasi. "
-                "Jika perlu menyebut dasar hukum, cukup sebut KUHPerdata secara umum secara natural. "
-                "Gaya: 1) Validasi singkat, 2) Ringkas fakta dari konteks, 3) Tawarkan pilihan langkah ringan, "
-                "4) Ajukan satu pertanyaan terbuka untuk memahami kendala/tujuan pengguna."
-            )
-        else:
-            preamble = (
-                "Anda adalah asisten koleksi internal. Jawab ringkas dalam bahasa Indonesia formal. "
-                "Hindari simbol khusus seperti pagar atau bintang. Jika perlu menyebut pasal, "
-                "gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
-            )
+        # === PROMPT HYBRID (SATU GAYA) ===
+        preamble = (
+            "Anda asisten koleksi internal dengan nada hybrid: hangat, empatik, dan tetap ringkas. "
+            "Langkah jawab: 1 validasi singkat, 2 rangkum fakta dari konteks jika ada, 3 tawarkan opsi praktis yang tidak melanggar hukum, "
+            "4 akhiri dengan satu pertanyaan terbuka yang sopan. "
+            "Gunakan Bahasa Indonesia sehari-hari yang sopan, kalimat pendek, boleh pakai koma atau titik dua seperlunya. "
+            "Jika perlu menyebut dasar hukum, sebutkan KUHPerdata secara natural tanpa menakut-nakuti. "
+            "Hindari saran yang bertentangan dengan hukum, kekerasan, atau intimidasi."
+        )
 
+        # input pengguna (PASTIKAN DIDEFINISIKAN sebelum dipakai)
+        user_prompt = st.chat_input("Ketik pertanyaan…")
+
+        if user_prompt:
+            # ringkasan konteks saat ini (opsional)
             ctx_obj = {
                 "ID": int(row_raw.get("ID")),
                 "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
@@ -1113,7 +1110,7 @@ try:
             with st.chat_message("assistant"):
                 with st.spinner("Menjawab…"):
                     reply = _call_gemini_chat(history)
-                    reply_clean = _sanitize_chat(reply) if tone == "Ramah empatik" else _sanitize_plain(reply)
+                    reply_clean = _sanitize_chat(reply)  # pakai sanitizer longgar agar natural
                     st.markdown(reply_clean)
             st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
@@ -1125,11 +1122,12 @@ try:
         if col_copy.button("📋 Salin Ringkas"):
             try:
                 st.code(
-                    "\n\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
+                    "\n\n".join(_sanitize_chat(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
                     language="markdown"
                 )
             except Exception:
                 pass
+
 
 
 except Exception as e:
