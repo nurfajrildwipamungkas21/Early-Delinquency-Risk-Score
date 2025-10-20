@@ -504,6 +504,39 @@ def _sanitize_chat(text: str) -> str:
     return t.strip()
 
 # ────────────────────────────────────────────────────────────────────────────────
+# Privacy guard: blokir pertanyaan meta tentang LLM/API key/engine/training
+# ────────────────────────────────────────────────────────────────────────────────
+PRIVACY_GUARD_MSG = (
+    "Maaf saya tidak mengerti apa yang Anda maksud, Anda bisa bertanya hal tersebut "
+    "kepada **Nur Fajril Dwi Pamungkas** selaku pencipta."
+)
+
+_META_KEYWORDS = [
+    # ID
+    "api key", "apikey", "kunci api", "key api", "token", "secret", "secrets",
+    "engine", "mesin", "model apa", "pakai model", "pakai engine",
+    "gemini", "openai", "chatgpt", "gpt", "llm", "model bahasa",
+    "dibuat sendiri", "buat sendiri", "pelatihan", "dilatih", "training", "fine tune", "finetune",
+    "parameter", "dataset", "arsitektur", "temperature", "top_p", "top p",
+    "akses api", "akses llm", "provider", "vendor ai", "google ai"
+]
+_META_REGEXES = [
+    r"\bapi\s*key\b", r"\baccess\s*token\b", r"\bengine\b", r"\bmodel\b",
+    r"\btraining\b", r"\bfine[-\s]?tune\b", r"\b(openai|gemini|chatgpt|gpt)\b",
+]
+
+def _is_meta_llm_query(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    # cepat: cek kata kunci sederhana
+    if any(k in t for k in _META_KEYWORDS):
+        return True
+    # ekstra: regex umum
+    return any(re.search(p, t) for p in _META_REGEXES)
+
+
+# ────────────────────────────────────────────────────────────────────────────────
 # Data loading helpers
 # ────────────────────────────────────────────────────────────────────────────────
 APP_DIR = Path(__file__).parent
@@ -1097,6 +1130,49 @@ try:
                 "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
             }
             ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
+            
+        user_prompt = st.chat_input("Ketik pertanyaan…")
+
+        if user_prompt:
+            # === PRIVACY GUARD: intercept pertanyaan meta tentang LLM/API key/engine/training ===
+            if _is_meta_llm_query(user_prompt):
+                st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
+                with st.chat_message("assistant"):
+                    st.markdown(PRIVACY_GUARD_MSG)
+                # simpan ke riwayat sebagai balasan asisten, tanpa memanggil LLM
+                st.session_state.chat_messages.append({"role": "model", "parts": [{"text": PRIVACY_GUARD_MSG}]})
+            else:
+                # (lanjutkan alur normal seperti sebelumnya)
+                ctx_obj = {
+                    "ID": int(row_raw.get("ID")),
+                    "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
+                    "edrs_score": int(row_skor.get("edrs_score")),
+                    "bucket": str(row_skor.get("bucket")),
+                    "count_telat_3m": int(row_skor.get("count_telat_3m")),
+                    "count_telat_6m": int(row_skor.get("count_telat_6m")),
+                    "max_tunggakan_6m": int(row_skor.get("max_tunggakan_6m")),
+                    "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
+                    "bill_trend_up": bool(row_skor.get("bill_trend_up")),
+                    "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
+                }
+                ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
+
+                history = st.session_state.chat_messages.copy()
+                if not history:
+                    history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
+                else:
+                    if use_ctx:
+                        history.append({"role": "user", "parts": [{"text": ctx_text}]})
+
+                history.append({"role": "user", "parts": [{"text": user_prompt}]})
+                st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Menjawab…"):
+                        reply = _call_gemini_chat(history)
+                        reply_clean = _sanitize_chat(reply)
+                        st.markdown(reply_clean)
+                st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
             # siapkan riwayat untuk API
             history = st.session_state.chat_messages.copy()
