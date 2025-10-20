@@ -246,7 +246,7 @@ GLOBAL_CSS = GLOBAL_CSS.replace("{{", "{").replace("}}", "}")
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
-st.markdown(\"\"\"
+st.markdown("""
 <style>
 /* Bungkus utama komponen */
 .stFileUploader, [data-testid="stFileUploader"] * { color: var(--fg) !important; }
@@ -268,7 +268,7 @@ st.markdown(\"\"\"
 [data-testid="stSelectbox"] div[role="combobox"] { border-color: var(--border) !important; }
 [data-testid="stSelectbox"] svg { color: var(--fg) !important; }
 </style>
-\"\"\", unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
@@ -631,7 +631,7 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
         "next_best_action": str(row_skor.get("next_best_action")),
     }
     ctx_json = json.dumps(ctx, ensure_ascii=False)
-    return textwrap.dedent(f\"\"\"
+    return textwrap.dedent(f"""
     Anda adalah analis hukum internal untuk Indonesia.
     Tulis satu paragraf naratif yang langsung ke inti tanpa heading, tanpa bullet, dan tanpa simbol khusus seperti # * - — , ; :.
     Gunakan 7 sampai 12 kalimat, Bahasa Indonesia formal, ringkas dan jelas.
@@ -644,11 +644,11 @@ def _build_prompt_step1(id_val: int, row_raw: pd.Series, row_skor: pd.Series, in
 
     Data konteks JSON:
     {ctx_json}
-    \"\"\")
+    """)
 
 def _build_prompt_step2(draft1_text: str) -> str:
     canon = json.dumps(ALLOWED_PASAL, ensure_ascii=False, indent=2)
-    return textwrap.dedent(f\"\"\"
+    return textwrap.dedent(f"""
     Anda melanjutkan draf naratif berikut dari Tahap 1.
     Hasil akhir harus berupa satu paragraf natural, tanpa heading, tanpa daftar, dan tanpa simbol # * - — , ; :.
     Masukkan rujukan pasal HANYA dari daftar kanonik di bawah ini, ditulis natural di dalam kalimat (misal: berdasarkan KUHPerdata Pasal 1238).
@@ -664,7 +664,7 @@ def _build_prompt_step2(draft1_text: str) -> str:
 
     Draf Tahap 1:
     {draft1_text}
-    \"\"\")
+    """)
 
 def get_or_generate_conclusion(id_val: int, row_raw: pd.Series, row_skor: pd.Series, insight_text: str) -> str:
     sig = _insight_signature(id_val, insight_text)
@@ -788,7 +788,7 @@ LIGHT_THEME_VARS = """
 """
 _ui_fs = round(13.5 * ui_scale / 100, 2)
 
-st.markdown(\"\"\"
+st.markdown("""
 <style>
 :root {{
   color-scheme: light !important;
@@ -803,7 +803,7 @@ st.markdown(\"\"\"
   }}
 }}
 </style>
-\"\"\".format(ui_fs=_ui_fs, theme_vars=LIGHT_THEME_VARS), unsafe_allow_html=True)
+""".format(ui_fs=_ui_fs, theme_vars=LIGHT_THEME_VARS), unsafe_allow_html=True)
 
 # Mode mobile (ringkas kolom)
 mobile_compact = st.sidebar.toggle(
