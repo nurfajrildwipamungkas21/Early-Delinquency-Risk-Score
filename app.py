@@ -284,6 +284,23 @@ def _call_gemini(prompt_text: str, timeout: int = 40) -> str:
     except Exception as e:
         log.warning(f"GEMINI fallback: {e}")
         return ""  # biarkan caller pakai fallback narasi
+    
+def _call_gemini_chat(history: list[dict], timeout: int = 40) -> str:
+    """
+    Chat wrapper sederhana untuk Gemini v1beta generateContent berbasis riwayat.
+    history: list of {"role": "user"|"model", "parts":[{"text": "..."}]}
+    """
+    try:
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        payload = {"contents": history[-24:]}  # batasi konteks agar ringan
+        r = requests.post(GEMINI_ENDPOINT, params={"key": GEMINI_API_KEY},
+                          headers=headers, json=payload, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception as e:
+        log.warning(f"CHAT fallback: {e}")
+        return "Maaf, layanan percakapan sedang tidak tersedia."
 
 def _sanitize_plain(text: str) -> str:
     t = re.sub(r'^\s*#{1,6}\s*', '', text, flags=re.MULTILINE)
@@ -781,34 +798,123 @@ try:
             st.markdown("#### PAY AMT 1 sampai 6 (pembayaran 6 bulan)")
             st.dataframe(pd.DataFrame([row_raw[pmt_cols]], columns=pmt_cols), width='stretch', hide_index=True)
 
-        st.markdown("#### Ringkasan Rules")
-        rules_df = pd.DataFrame([{
-            "Count telat 3m": int(row_skor["count_telat_3m"]),
-            "Count telat 6m": int(row_skor["count_telat_6m"]),
-            "Max tunggakan 6m": int(row_skor["max_tunggakan_6m"]),
-            "Ratio bayar last": f"{float(row_skor['ratio_bayar_last']):.2f}",
-            "Bill trend up": "Yes" if bool(row_skor["bill_trend_up"]) else "No",
-            "DPD proxy now": "Yes" if int(row_skor["dpd_proxy_now"]) else "No",
-            "Streak telat 2+": "Yes" if int(row_skor["streak_telat2plus"]) else "No",
-        }])
-        st.dataframe(rules_df, width='stretch', hide_index=True)
+    # Ringkasan Rules
+    st.markdown("#### Ringkasan Rules")
+    rules_df = pd.DataFrame([{
+        "Count telat 3m": int(row_skor["count_telat_3m"]),
+        "Count telat 6m": int(row_skor["count_telat_6m"]),
+        "Max tunggakan 6m": int(row_skor["max_tunggakan_6m"]),
+        "Ratio bayar last": f"{float(row_skor['ratio_bayar_last']):.2f}",
+        "Bill trend up": "Yes" if bool(row_skor["bill_trend_up"]) else "No",
+        "DPD proxy now": "Yes" if int(row_skor["dpd_proxy_now"]) else "No",
+        "Streak telat 2+": "Yes" if int(row_skor["streak_telat2plus"]) else "No",
+    }])
+    st.dataframe(rules_df, width='stretch', hide_index=True)
 
-        if "default.payment.next.month" in row_skor:
-            st.markdown("#### Label Target")
-            st.dataframe(pd.DataFrame({"Default payment next month":[row_skor["default.payment.next.month"]]}),
-                         width='stretch', hide_index=True)
+    # Label target (bila ada di data)
+    if "default.payment.next.month" in row_skor.index:
+        st.markdown("#### Label Target")
+        st.dataframe(
+            pd.DataFrame({"Default payment next month": [row_skor["default.payment.next.month"]]}),
+            width='stretch',
+            hide_index=True
+        )
 
-        st.markdown("#### Insight")
-        limit_pct = base_df["LIMIT_BAL"].rank(pct=True); limit_pct.index = base_df["ID"].values
-        insight_text = generate_insight(row_raw, row_skor, limit_pct)
-        st.markdown(f"<div class='legal-text'>{insight_text}</div>", unsafe_allow_html=True)
+    # Insight naratif
+    st.markdown("#### Insight")
+    limit_pct = base_df["LIMIT_BAL"].rank(pct=True)
+    limit_pct.index = base_df["ID"].values
+    insight_text = generate_insight(row_raw, row_skor, limit_pct)
+    st.markdown(f"<div class='legal-text'>{insight_text}</div>", unsafe_allow_html=True)
 
-        st.markdown("#### Kesimpulan")
-        with st.spinner("Menyusun narasi…"):
-            kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
-            kesimpulan_text = _sanitize_plain(kesimpulan_text)
-        st.markdown(f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
-                    unsafe_allow_html=True)
+    # Kesimpulan berbasis LLM (fallback aman bila API gagal)
+    st.markdown("#### Kesimpulan")
+    with st.spinner("Menyusun narasi…"):
+        kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
+        kesimpulan_text = _sanitize_plain(kesimpulan_text)
+    st.markdown(
+        f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
+        unsafe_allow_html=True
+    )
+
+    # ======================================================================
+    # Chatbot Koleksi
+    # ======================================================================
+    st.markdown("---")
+    st.subheader("Chatbot Koleksi")
+    st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
+
+    # state riwayat
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = []
+
+    use_ctx = st.checkbox(
+        "Sertakan konteks ID saat ini",
+        value=True,
+        help="Pertanyaan akan disertai ringkasan variabel ID yang sedang dipilih."
+    )
+
+    # tampilkan riwayat
+    for msg in st.session_state.chat_messages:
+        role = "user" if msg["role"] == "user" else "assistant"
+        with st.chat_message(role):
+            st.markdown(_sanitize_plain(msg["parts"][0]["text"]))
+
+    # input pengguna
+    user_prompt = st.chat_input("Ketik pertanyaan…")
+    if user_prompt:
+        preamble = (
+            "Anda adalah asisten koleksi internal. Jawab ringkas dalam bahasa Indonesia formal. "
+            "Hindari simbol khusus seperti pagar, bintang, dash, koma, titik dua. "
+            "Jika perlu menyebut pasal, gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
+        )
+        ctx_obj = {
+            "ID": int(row_raw.get("ID")),
+            "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
+            "edrs_score": int(row_skor.get("edrs_score")),
+            "bucket": str(row_skor.get("bucket")),
+            "count_telat_3m": int(row_skor.get("count_telat_3m")),
+            "count_telat_6m": int(row_skor.get("count_telat_6m")),
+            "max_tunggakan_6m": int(row_skor.get("max_tunggakan_6m")),
+            "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
+            "bill_trend_up": bool(row_skor.get("bill_trend_up")),
+            "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
+        }
+        ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
+
+        # siapkan riwayat untuk API
+        history = st.session_state.chat_messages.copy()
+        if not history:
+            history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
+        else:
+            if use_ctx:
+                history.append({"role": "user", "parts": [{"text": ctx_text}]})
+
+        # tambahkan pesan user
+        history.append({"role": "user", "parts": [{"text": user_prompt}]})
+        st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
+
+        # panggil LLM
+        with st.chat_message("assistant"):
+            with st.spinner("Menjawab…"):
+                reply = _call_gemini_chat(history)
+                reply_clean = _sanitize_plain(reply)
+                st.markdown(reply_clean)
+        st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
+
+    # kontrol tambahan
+    col_clear, col_copy = st.columns(2)
+    if col_clear.button("🧹 Bersihkan Riwayat"):
+        st.session_state.chat_messages = []
+        st.rerun()
+    if col_copy.button("📋 Salin Ringkas"):
+        try:
+            st.code(
+                "\n\n".join(_sanitize_plain(m["parts"][0]["text"]) for m in st.session_state.chat_messages),
+                language="markdown"
+            )
+        except Exception:
+            pass
 
 except Exception as e:
     log.exception("Top-level failure")
