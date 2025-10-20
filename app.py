@@ -870,12 +870,15 @@ def _vars_for_theme(choice: str) -> str:
         """
     return ""  # Auto -> pakai prefers-color-scheme
 
-_ui_fs = round(13.5 * ui_scale/100, 2)
+_ui_fs = round(13.5 * ui_scale / 100, 2)
 _theme_vars = _vars_for_theme(theme_choice)
 
 st.markdown(f"""
 <style>
-:root {{ --fs-base:{_ui_fs}px; {_theme_vars} }}
+:root {{
+  --fs-base: {_ui_fs}px;
+  {_theme_vars}
+}}
 </style>
 """, unsafe_allow_html=True)
 
