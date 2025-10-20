@@ -308,6 +308,30 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 st.markdown("""
 <style>
+/* Gunakan font sistem yang stabil khusus paragraf narasi */
+.legal-text {
+  font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif !important;
+  letter-spacing: 0 !important;
+  word-spacing: normal !important;
+  font-kerning: none !important;
+  font-variant-ligatures: none !important;
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0 !important;
+  text-rendering: auto !important;         /* jangan optimizeSpeed */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  hyphens: manual !important;               /* jangan auto-hyphenate */
+  overflow-wrap: normal !important;
+  white-space: pre-wrap !important;         /* tetap menghormati newline */
+}
+
+/* Hindari letter-spacing besar di heading */
+h1, h2, h3, h4 { letter-spacing: normal !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
 /* Perbaiki teks yang pecah di paragraf panjang */
 .legal-text {
   letter-spacing: normal !important;          /* buang letter-spacing */
@@ -468,6 +492,21 @@ def _sanitize_plain(text: str) -> str:
     t = re.sub(r'\\bini\\s+adalah\\s+ringkasan\\s+internal\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
     t = re.sub(r'\\bbukan\\s+pendapat\\s+hukum\\s+final\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
     return t.strip()
+
+def _sanitize_plain(text: str) -> str:
+    # Hapus karakter tak terlihat yang sering bikin kata terpecah
+    ZW_CHARS = (
+        "\u200b"  # zero width space
+        "\u200c"  # zero width non-joiner
+        "\u200d"  # zero width joiner
+        "\u2060"  # word joiner
+        "\u00ad"  # soft hyphen
+        "\u2028\u2029"  # line/para sep
+        "\ufeff"  # BOM
+    )
+    for ch in ZW_CHARS:
+        text = text.replace(ch, "")
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Data loading helpers
