@@ -62,15 +62,6 @@ GLOBAL_CSS = f"""{font_link}
     --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
   }}
 }}
-  --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
-  --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
-}}
-@media (prefers-color-scheme: dark) {{
-  :root {{
-    --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
-    --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
-  }}
-}}
 /* Pastikan SELURUH permukaan ikut berubah warna */
 html, body,
 [data-testid="stAppViewContainer"], .main, .block-container {{
@@ -156,57 +147,57 @@ footer [data-testid="stChatInput"] * {{
 /* Area container yang Streamlit pakai untuk menampung chat message */
 section[aria-label="chat"],            /* fallback beberapa versi */
 [data-testid="stChatMessageContainer"], 
-div[data-testid="stChatMessageContainer"] > div:empty {
+div[data-testid="stChatMessageContainer"] > div:empty {{
   background: var(--navy) !important;
   border: 1.5px solid color-mix(in srgb, var(--navy) 70%, var(--border)) !important;
   border-radius: 14px !important;
   padding: 14px !important;
-}
+}}
 
 /* Gelembung setiap pesan (user & assistant) */
-[data-testid="stChatMessage"] > div {
+[data-testid="stChatMessage"] > div {{
   background: color-mix(in srgb, var(--navy) 88%, transparent) !important;
   border: 1px solid color-mix(in srgb, var(--navy) 70%, var(--border)) !important;
   border-radius: 12px !important;
   color: var(--navy-ink) !important;
-}
-[data-testid="stChatMessage"] * {
+}}
+[data-testid="stChatMessage"] * {{
   color: var(--navy-ink) !important;
-}
+}}
 
 /* Header & caption di blok Chatbot Koleksi ikut terang di atas navy */
-h3:has(+ p) { color: var(--fg) !important; }
+h3:has(+ p) {{ color: var(--fg) !important; }}
 
 /* Tombol di dalam panel chat: putih bersih di atas navy */
 [data-testid="stChatMessageContainer"] button,
 [data-testid="stChatMessage"] button,
-section[aria-label="chat"] button {
+section[aria-label="chat"] button {{
   background: transparent !important;
   color: var(--navy-ink) !important;
   border: 1px solid color-mix(in srgb, var(--navy) 65%, var(--border)) !important;
   border-radius: 10px !important;
-}
+}}
 section[aria-label="chat"] button:hover,
-[data-testid="stChatMessage"] button:hover {
+[data-testid="stChatMessage"] button:hover {{
   background: color-mix(in srgb, var(--navy) 30%, transparent) !important;
-}
+}}
 
 /* Icon kirim/chevron di area itu juga putih */
 section[aria-label="chat"] svg,
-[data-testid="stChatMessage"] svg {
+[data-testid="stChatMessage"] svg {{
   color: var(--navy-ink) !important;
   fill: currentColor !important;
-}
+}}
 
 /* Link di dalam panel chat: toned-down putih */
 section[aria-label="chat"] a,
-[data-testid="stChatMessage"] a {
+[data-testid="stChatMessage"] a {{
   color: var(--navy-ink) !important;
   text-decoration: underline dotted;
   text-underline-offset: 3px;
   opacity: .95;
-}
-section[aria-label="chat"] a:hover { opacity: 1; }
+}}
+section[aria-label="chat"] a:hover {{ opacity: 1; }}
 
 /* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
 [data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {{
