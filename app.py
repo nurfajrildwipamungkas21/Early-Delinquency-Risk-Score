@@ -48,16 +48,15 @@ GLOBAL_CSS = f"""{font_link}
   --fs-base: 13.5px;
   /* default (light) */
   --bg:#ffffff; --fg:#111827; --muted:#4b5563;
-  --card:#ffffff; --border:#d1d5db; --accent: color-mix(in srgb, #0ea5e9 86%, #ffffff 14%);
+  --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
   --navy:#0f1e33;           /* biru tua utama */
   --navy-ink:#eaf2ff;       /* putih kebiruan untuk teks di atas navy */
   --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead:#f3f4f6;
-  --radius: 14px;           /* radius global */
 }}
 @media (prefers-color-scheme: dark) {{
   :root {{
     --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af;
-    --card:#0f1720; --border:#2a3442; --accent: color-mix(in srgb, #38bdf8 86%, #0b0f16 14%);
+    --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
     --navy:#0f1e33;          /* tetap konsisten */
     --navy-ink:#ffffff;
     --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
@@ -88,19 +87,6 @@ h1,h2,h3,h4, p, li, label, .stMarkdown, .stMarkdown p, .stText, .stCaption {{
 h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 .legal-text {{ font-size:var(--fs-base); line-height:1.6; letter-spacing:.1px; }}
 .small-note {{ color: var(--muted) !important; }}
-
-/* ==== Global rounded radii (seragam) ==== */
-.block-container,
-[data-testid="stSidebar"],
-.stDataFrame,
-.stAlert,
-[data-testid="stSelectbox"],
-.stTextInput,
-.stNumberInput,
-.stFileUploader [data-testid="stFileUploaderDropzone"] {
-  border-radius: var(--radius) !important;
-}
-
 
 /* Kontainer & tombol */
 .block-container {{ padding-top:1.2rem !important; padding-bottom:2rem !important; }}
@@ -261,8 +247,13 @@ section[aria-label="chat"] a,
 }}
 section[aria-label="chat"] a:hover {{ opacity: 1; }}
 
+/* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
+[data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {{
+  display:none !important; visibility:hidden !important;
+}}
+
 /* TABEL: kontras tinggi */
-/* --- CSS (lanjutan di GLOBAL_CSS) --- */
+# --- CSS (lanjutan di GLOBAL_CSS) ---
 .stDataFrame {
   background: var(--card) !important;
   border: 1.5px solid var(--border) !important;
@@ -999,12 +990,9 @@ try:
     # ======================================================================
     # Chatbot Koleksi
     # ======================================================================
-    st.markdown("---")
+    st.markdown("<div class='panel-navy'>", unsafe_allow_html=True)
     st.subheader("Chatbot Koleksi")
     st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
-
-    # >>>>> TAMBAHKAN PEMBUKA PANEL
-    st.markdown("<div class='panel-navy'>", unsafe_allow_html=True)
 
     # state riwayat
     if "chat_messages" not in st.session_state:
@@ -1044,6 +1032,7 @@ try:
         }
         ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
 
+        # siapkan riwayat untuk API
         history = st.session_state.chat_messages.copy()
         if not history:
             history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
@@ -1051,9 +1040,11 @@ try:
             if use_ctx:
                 history.append({"role": "user", "parts": [{"text": ctx_text}]})
 
+        # tambahkan pesan user
         history.append({"role": "user", "parts": [{"text": user_prompt}]})
         st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
 
+        # panggil LLM
         with st.chat_message("assistant"):
             with st.spinner("Menjawab…"):
                 reply = _call_gemini_chat(history)
@@ -1061,6 +1052,7 @@ try:
                 st.markdown(reply_clean)
         st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
+    # kontrol tambahan
     col_clear, col_copy = st.columns(2)
     if col_clear.button("🧹 Bersihkan Riwayat"):
         st.session_state.chat_messages = []
@@ -1073,8 +1065,6 @@ try:
             )
         except Exception:
             pass
-
-    # <<<<< TAMBAHKAN PENUTUP PANEL
     st.markdown("</div>", unsafe_allow_html=True)
 
 except Exception as e:
