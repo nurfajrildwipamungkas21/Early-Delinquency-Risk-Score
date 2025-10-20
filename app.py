@@ -90,20 +90,15 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 
 /* Kontainer & tombol */
 .block-container {{ padding-top:1.2rem !important; padding-bottom:2rem !important; }}
-.stDownloadButton > button, .stButton > button {
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--accent) 92%, white 8%); /* sedikit dilunakkan */
-  color: white;
-  transition: box-shadow .18s ease, transform .06s ease;
-}
-.stDownloadButton > button:hover, .stButton > button:hover {
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
-}
-.stDownloadButton > button:active, .stButton > button:active {
-  transform: translateY(1px);
-}
-
+.stDownloadButton > button, .stButton > button {{
+  border-radius: 12px; border:1px solid var(--border);
+  background: var(--accent); color: white;
+}}
+/* Sidebar */
+[data-testid="stSidebar"] {{
+  min-width:290px; width:290px; background:var(--card) !important;
+  border-right:1px solid var(--border);
+}}
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
 /* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
@@ -1066,6 +1061,7 @@ try:
         except Exception:
             pass
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 except Exception as e:
     log.exception("Top-level failure")
