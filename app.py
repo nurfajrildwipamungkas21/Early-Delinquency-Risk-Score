@@ -577,7 +577,7 @@ def load_data(source_hint: str, saved_path_str: str | None) -> pd.DataFrame:
 # Core EDRS (fitur, skor, bucket)
 # ────────────────────────────────────────────────────────────────────────────────
 def compute_features(df: pd.DataFrame):
-    must_have = ["ID", "LIMIT_BAL", "default.payment.next.month"]
+    must_have = ["ID", "LIMIT_BAL"]  # label target opsional
     for c in must_have:
         if c not in df.columns:
             raise ValueError(f"Kolom '{c}' wajib ada.")
