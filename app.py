@@ -308,7 +308,7 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-/* Gunakan font sistem yang stabil khusus paragraf narasi */
+/* Paragraf narasi (legal-text) — font sistem + perbaikan rendering */
 .legal-text {
   font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif !important;
   letter-spacing: 0 !important;
@@ -316,13 +316,21 @@ st.markdown("""
   font-kerning: none !important;
   font-variant-ligatures: none !important;
   font-feature-settings: "liga" 0, "clig" 0, "calt" 0 !important;
-  text-rendering: auto !important;         /* jangan optimizeSpeed */
+  text-rendering: auto !important;        /* hindari optimizeSpeed */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  hyphens: manual !important;               /* jangan auto-hyphenate */
+  hyphens: manual !important;             /* jangan auto-hyphenate */
   overflow-wrap: normal !important;
-  white-space: pre-wrap !important;         /* tetap menghormati newline */
+  white-space: pre-wrap !important;       /* hormati newline */
+
+  /* Tambahan kenyamanan baca */
+  line-height: 1.7 !important;
+  max-width: 78ch;
+  margin: 0;
 }
+
+/* Jarak antar paragraf di dalam legal-text */
+.legal-text p + p { margin-top: .6rem !important; }
 
 /* Hindari letter-spacing besar di heading */
 h1, h2, h3, h4 { letter-spacing: normal !important; }
