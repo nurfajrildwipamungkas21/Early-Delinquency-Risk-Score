@@ -90,15 +90,19 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 
 /* Kontainer & tombol */
 .block-container {{ padding-top:1.2rem !important; padding-bottom:2rem !important; }}
-.stDownloadButton > button, .stButton > button {{
-  border-radius: 12px; border:1px solid var(--border);
-  background: var(--accent); color: white;
-}}
-/* Sidebar */
-[data-testid="stSidebar"] {{
-  min-width:290px; width:290px; background:var(--card) !important;
-  border-right:1px solid var(--border);
-}}
+.stDownloadButton > button, .stButton > button {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 92%, white 8%); /* sedikit dilunakkan */
+  color: white;
+  transition: box-shadow .18s ease, transform .06s ease;
+}
+.stDownloadButton > button:hover, .stButton > button:hover {
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.stDownloadButton > button:active, .stButton > button:active {
+  transform: translateY(1px);
+}
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
 /* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
@@ -249,40 +253,42 @@ section[aria-label="chat"] a:hover {{ opacity: 1; }}
 }}
 
 /* TABEL: kontras tinggi */
-.stDataFrame {{
+# --- CSS (lanjutan di GLOBAL_CSS) ---
+.stDataFrame {
   background: var(--card) !important;
   border: 1.5px solid var(--border) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;                 /* was 12px */
   padding: .25rem !important;
-}}
-.stDataFrame table {{ font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }}
-.stDataFrame thead tr th {{
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--fg) 6%, transparent); /* subtle depth */
+}
+.stDataFrame table { font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }
+.stDataFrame thead tr th {
   position: sticky; top: 0;
   background: var(--thead) !important; color: var(--fg) !important;
   font-weight: 600 !important; border-bottom: 2px solid var(--border) !important;
-}}
-.stDataFrame tbody tr td {{ border-color: var(--border) !important; padding: 8px 10px !important; }}
-.stDataFrame tbody tr:nth-child(even) td {{ background: var(--zebra) !important; }}
-.stDataFrame tbody tr:nth-child(odd)  td {{ background: transparent !important; }}
-.stDataFrame tbody tr:hover td {{ background: var(--zebra2) !important; }}
+}
+.stDataFrame tbody tr td { border-color: var(--border) !important; padding: 8px 10px !important; }
+.stDataFrame tbody tr:nth-child(even) td { background: var(--zebra) !important; }
+.stDataFrame tbody tr:nth-child(odd)  td { background: transparent !important; }
+.stDataFrame tbody tr:hover td { background: var(--zebra2) !important; }
 
 /* Input/widget: teks kontras */
-input, select, textarea, .stNumberInput input, .stTextInput input {{
+input, select, textarea, .stNumberInput input, .stTextInput input {
   color: var(--fg) !important; background: var(--card) !important; border-color: var(--border) !important;
-}}
+}
 
 /* Mobile tweaks */
-@media (max-width: 640px) {{
-  :root {{ --fs-base: 13px; }}
-  h1 {{ font-size:1.55rem !important; }}
-  h2 {{ font-size:1.25rem !important; }}
-  .stDownloadButton {{ width:100% !important; }}
+@media (max-width: 640px) {
+  :root { --fs-base: 13px; }
+  h1 { font-size:1.55rem !important; }
+  h2 { font-size:1.25rem !important; }
+  .stDownloadButton { width:100% !important; }
 }}
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
-# Tambahan CSS khusus untuk file_uploader (tempel setelah OVERRIDE_CSS)
+# Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
 st.markdown("""
 <style>
 /* Bungkus utama komponen */
@@ -294,7 +300,7 @@ st.markdown("""
 [data-testid="stFileUploaderDropzone"]{
   background: var(--card) !important;
   border: 1.5px dashed var(--accent) !important;
-  border-radius: 12px !important;
+  border-radius: 12px !important;  /* boleh dinaikkan ke 14px jika ingin seragam */
 }
 [data-testid="stFileUploaderDropzone"]:hover,
 [data-testid="stFileUploaderDropzone"]:focus-within{
@@ -338,7 +344,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
@@ -1061,7 +1066,6 @@ try:
         except Exception:
             pass
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 except Exception as e:
     log.exception("Top-level failure")
