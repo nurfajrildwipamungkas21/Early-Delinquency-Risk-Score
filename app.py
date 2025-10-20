@@ -96,22 +96,22 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
 /* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
-div[data-testid="stToolbar"], div[data-testid="stStatusWidget"] {
+div[data-testid="stToolbar"], div[data-testid="stStatusWidget"] {{
   display:none !important; visibility:hidden !important; height:0 !important; overflow:hidden !important;
-}
+}}
 
 /* Sembunyikan hanya dekorasi/footer default Streamlit, tapi biarkan Chat Input terlihat */
-footer { display:block !important; visibility:visible !important; height:auto !important; }
-footer [data-testid="stDecoration"] { display:none !important; }
-footer .stAppDeployButton { display:none !important; }
+footer {{ display:block !important; visibility:visible !important; height:auto !important; }}
+footer [data-testid="stDecoration"] {{ display:none !important; }}
+footer .stAppDeployButton {{ display:none !important; }}
 
 /* Paksa Chat Input kelihatan dan mengikuti tema */
-footer [data-testid="stChatInput"] {
+footer [data-testid="stChatInput"] {{
   display:flex !important; visibility:visible !important; opacity:1 !important;
-}
-footer [data-testid="stChatInput"] * {
+}}
+footer [data-testid="stChatInput"] * {{
   color: var(--fg) !important;
-}
+}}
 
 /* Sembunyikan tombol collapse sidebar dan teks fallback-nya */
 [data-testid="collapsed-control"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapseButton"] {{
