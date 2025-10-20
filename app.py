@@ -134,6 +134,30 @@ footer [data-testid="stChatInput"] button svg { color:#fff !important; fill: cur
   box-shadow: 0 8px 22px color-mix(in srgb, var(--navy) 18%, transparent);
 }
 
+/* ── PATCH: bersihkan baris hitam dekoratif di atas judul panel navy ── */
+.panel-navy hr,
+.panel-navy [role="progressbar"],
+.panel-navy [data-testid="stDivider"],
+.panel-navy [data-testid="stProgress"],
+.panel-navy .stMarkdown:has(hr),
+.panel-navy > *:first-child hr,
+.panel-navy h1::before,
+.panel-navy h2::before,
+.panel-navy h3::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* Hilangkan kemungkinan border/box-shadow bawaan heading */
+.panel-navy h1, .panel-navy h2, .panel-navy h3 {
+  border: none !important;
+  box-shadow: none !important;
+  margin-top: 0 !important;
+}
+
+/* Kalau ada wrapper kosong yang menyisakan “pill”, sembunyikan juga */
+.panel-navy > div:empty { display: none !important; }
+
 /* Hilangkan 'baris oval' dekoratif/garis horizontal apapun yang mungkin muncul di atas judul */
 .panel-navy hr,
 .panel-navy [role="progressbar"],
