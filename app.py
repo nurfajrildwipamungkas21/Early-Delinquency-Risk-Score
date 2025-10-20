@@ -313,7 +313,7 @@ st.markdown("""
 :root {
   --read-fs: 15.5px;   /* nyaman dibaca */
   --read-lh: 1.88;     /* line-height lapang */
-  --read-ch: 72ch;     /* lebar kolom ideal artikel */
+  --read-ch: 72ch;     /* fallback lebar kolom ideal */
 }
 
 /* Teks umum */
@@ -329,24 +329,36 @@ st.markdown("""
 /* Heading */
 h1,h2,h3,h4 {
   font-weight: 700 !important;
-  letter-spacing: normal !important;   /* <— pindahkan aturan ini ke sini */
+  letter-spacing: normal !important;
   line-height: 1.25 !important;
   margin-top: .4rem !important;
   margin-bottom: .8rem !important;
 }
 
-/* Paragraf narasi (Insight & Kesimpulan) */
-.legal-text {
+/* Paragraf narasi (Insight & Kesimpulan) — responsive + justify */
+.legal-text{
   font-family: var(--font-body) !important;
   font-size: var(--read-fs) !important;
   line-height: var(--read-lh) !important;
   letter-spacing: .005em !important;
   word-spacing: .02em !important;
-  max-width: var(--read-ch) !important;
-  margin: .25rem 0 1rem 0 !important;
+
+  /* Responsif: melebar mengikuti viewport, tetap ada batas nyaman */
+  max-width: clamp(56ch, 85vw, 96ch) !important;
+  margin: .25rem auto 1rem auto !important;  /* center container */
   color: var(--fg) !important;
+
+  /* Alignment desktop/tablet */
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -ms-hyphens: auto;
 }
-.legal-text p { margin: 0 0 .9rem 0 !important; }
+.legal-text p { 
+  margin: 0 0 .9rem 0 !important;
+  text-align: inherit;
+}
 .legal-text strong, .legal-text b { font-weight: 700 !important; }
 
 /* Tabel sedikit lebih kecil */
@@ -358,9 +370,14 @@ h1,h2,h3,h4 {
   margin-bottom: .5rem !important;
 }
 
-/* Mobile */
+/* Mobile: lebih sempit & rata kiri agar rapi */
 @media (max-width: 640px) {
-  :root { --read-fs: 15px; --read-ch: 90vw; }
+  :root { --read-fs: 15px; }
+  .legal-text{
+    max-width: 92vw !important;
+    text-align: left;
+    hyphens: manual;
+  }
 }
 </style>
 """, unsafe_allow_html=True)
