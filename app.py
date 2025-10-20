@@ -487,18 +487,20 @@ def _sanitize_plain(text: str) -> str:
 
 
 def _sanitize_chat(text: str) -> str:
-    """Sanitizer longgar untuk chat (biarkan koma dan titik dua agar natural)."""
+    """Sanitizer longgar untuk chat: biarkan tanda baca, bullet, dan numbering Markdown."""
+    # Bersihkan karakter tak terlihat
     for ch in ("\u200b","\u200c","\u200d","\u2060","\u00ad","\u2028","\u2029","\ufeff"):
         text = text.replace(ch, "")
+
     t = text
-    t = re.sub(r'^\s*#{1,6}\s*', '', t, flags=re.MULTILINE)
-    t = t.replace('**', '')
-    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)
-    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
-    t = t.replace('*','').replace('_','').replace('—',' ')
-    # Perbedaan utama: JANGAN ganti ; atau :
-    t = re.sub(r'[ \t]+',' ', t)
-    t = re.sub(r'\n{3,}','\n\n', t)
+    # Boleh tetap buang heading level besar agar tidak norak, tapi JANGAN sentuh bullet/numbering
+    t = re.sub(r'^\s*#{1,2}\s*', '', t, flags=re.MULTILINE)  # hanya H1–H2
+    # Jangan hapus '-', '*', atau '1.' di awal baris
+    # Biarkan koma/semicolon/colon tetap ada agar kalimat natural
+    t = t.replace('—','-')  # normalisasi em-dash jadi dash biasa (opsional)
+    # Rapikan spasi berlebih & blank lines panjang
+    t = re.sub(r'[ \t]+', ' ', t)
+    t = re.sub(r'\n{3,}', '\n\n', t)
     return t.strip()
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -1067,6 +1069,15 @@ try:
             "Jika perlu menyebut dasar hukum, sebutkan KUHPerdata secara natural tanpa menakut-nakuti. "
             "Hindari saran yang bertentangan dengan hukum, kekerasan, atau intimidasi."
         )
+        
+        preamble = (
+            "Anda asisten koleksi internal dengan nada hybrid: hangat, empatik, dan tetap ringkas. "
+            "Langkah jawab: 1 validasi singkat, 2 rangkum fakta dari konteks jika ada, 3 tawarkan opsi praktis, "
+            "4 tutup dengan pertanyaan terbuka. "
+            "Jika cocok, gunakan daftar berpoin (-) atau bernomor untuk memperjelas, maksimal 5 poin per bagian. "
+            "Gunakan tanda baca secara natural; hindari simbol dekoratif berlebihan."
+        )
+
 
         # input pengguna (PASTIKAN DIDEFINISIKAN sebelum dipakai)
         user_prompt = st.chat_input("Ketik pertanyaan…")
