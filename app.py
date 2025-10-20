@@ -464,33 +464,42 @@ def _call_gemini_chat(history: list[dict], timeout: int = 40) -> str:
         return "Maaf, layanan percakapan sedang tidak tersedia."
 
 def _sanitize_plain(text: str) -> str:
-    # Bersihkan karakter tak terlihat (zero-width dsb.)
-    ZW_CHARS = (
-        "\u200b"  # zero width space
-        "\u200c"  # zero width non-joiner
-        "\u200d"  # zero width joiner
-        "\u2060"  # word joiner
-        "\u00ad"  # soft hyphen
-        "\u2028\u2029"  # line/para sep
-        "\ufeff"  # BOM
-    )
-    for ch in ZW_CHARS:
+    """Sanitizer ketat untuk narasi/konklusi (rapi, tanpa simbol dekoratif)."""
+    # Bersihkan karakter tak terlihat
+    for ch in ("\u200b","\u200c","\u200d","\u2060","\u00ad","\u2028","\u2029","\ufeff"):
         text = text.replace(ch, "")
-
-    # Normalisasi tanda & format markdown yang sering bikin aneh
     t = text
-    t = re.sub(r'^\s*#{1,6}\s*', '', t, flags=re.MULTILINE)    # buang heading markdown
+    # Hilangkan heading dan bullet markdown
+    t = re.sub(r'^\s*#{1,6}\s*', '', t, flags=re.MULTILINE)
     t = t.replace('**', '')
-    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)     # bulet
-    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)     # list bernomor
-    t = t.replace('*','').replace('_','').replace('—',' ')     # karakter dekoratif
-    t = t.replace(';', ',').replace(':', ' ')                   # jaga supaya tidak muncul titik dua/semicolon
+    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
+    # Buang simbol dekoratif, rapikan spasi
+    t = t.replace('*','').replace('_','').replace('—',' ')
+    # Tetap ganti ; dan : supaya gaya tulisan formal rapi
+    t = t.replace(';', ',').replace(':', ' ')
     t = re.sub(r'[ \t]+',' ', t)
     t = re.sub(r'\n{3,}','\n\n', t)
+    # Bersihkan frasa internal jika muncul
     t = re.sub(r'\bini\s+adalah\s+ringkasan\s+internal\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
     t = re.sub(r'\bbukan\s+pendapat\s+hukum\s+final\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
     return t.strip()
 
+
+def _sanitize_chat(text: str) -> str:
+    """Sanitizer longgar untuk chat (biarkan koma dan titik dua agar natural)."""
+    for ch in ("\u200b","\u200c","\u200d","\u2060","\u00ad","\u2028","\u2029","\ufeff"):
+        text = text.replace(ch, "")
+    t = text
+    t = re.sub(r'^\s*#{1,6}\s*', '', t, flags=re.MULTILINE)
+    t = t.replace('**', '')
+    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
+    t = t.replace('*','').replace('_','').replace('—',' ')
+    # Perbedaan utama: JANGAN ganti ; atau :
+    t = re.sub(r'[ \t]+',' ', t)
+    t = re.sub(r'\n{3,}','\n\n', t)
+    return t.strip()
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Data loading helpers
@@ -1020,6 +1029,14 @@ try:
         f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
         unsafe_allow_html=True
     )
+    
+    # Pilihan gaya jawaban (tone knob)
+    tone = st.radio(
+    "Gaya jawaban", 
+    ["Profesional ringkas", "Ramah empatik"],
+    index=1,
+    help="Ubah nada respons asisten."
+)
 
     # ======================================================================
     # Chatbot Koleksi
@@ -1048,14 +1065,24 @@ try:
             with st.chat_message(role):
                 st.markdown(_sanitize_plain(msg["parts"][0]["text"]))
 
-        # input pengguna
-        user_prompt = st.chat_input("Ketik pertanyaan…")
-        if user_prompt:
+        if tone == "Ramah empatik":
+            preamble = (
+                "Anda asisten koleksi internal dengan pendekatan hangat dan empatik. "
+                "Tujuan utama: dengarkan dulu, validasi perasaan, lalu bantu cari langkah praktis. "
+                "Gunakan bahasa Indonesia sehari-hari yang sopan, kalimat pendek, tidak menggurui. "
+                "Boleh gunakan koma, tanda titik dua seperlunya, dan kalimat tanya terbuka. "
+                "Tetap sesuai koridor: tidak menyarankan tindakan melawan hukum atau intimidasi. "
+                "Jika perlu menyebut dasar hukum, cukup sebut KUHPerdata secara umum secara natural. "
+                "Gaya: 1) Validasi singkat, 2) Ringkas fakta dari konteks, 3) Tawarkan pilihan langkah ringan, "
+                "4) Ajukan satu pertanyaan terbuka untuk memahami kendala/tujuan pengguna."
+            )
+        else:
             preamble = (
                 "Anda adalah asisten koleksi internal. Jawab ringkas dalam bahasa Indonesia formal. "
-                "Hindari simbol khusus seperti pagar, bintang, dash, koma, titik dua. "
-                "Jika perlu menyebut pasal, gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
+                "Hindari simbol khusus seperti pagar atau bintang. Jika perlu menyebut pasal, "
+                "gunakan pasal dari KUHPerdata umum saja dan jangan memberi saran yang melanggar hukum."
             )
+
             ctx_obj = {
                 "ID": int(row_raw.get("ID")),
                 "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
@@ -1086,7 +1113,7 @@ try:
             with st.chat_message("assistant"):
                 with st.spinner("Menjawab…"):
                     reply = _call_gemini_chat(history)
-                    reply_clean = _sanitize_plain(reply)
+                    reply_clean = _sanitize_chat(reply) if tone == "Ramah empatik" else _sanitize_plain(reply)
                     st.markdown(reply_clean)
             st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
