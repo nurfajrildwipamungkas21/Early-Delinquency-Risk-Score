@@ -134,6 +134,43 @@ footer [data-testid="stChatInput"] button svg { color:#fff !important; fill: cur
   box-shadow: 0 8px 22px color-mix(in srgb, var(--navy) 18%, transparent);
 }
 
+/* ── KILL SWITCH garis/pill gelap sebelum judul di panel navy ───────────────── */
+.panel-navy > :first-child { margin-top: 0 !important; }
+
+/* Elemen dekoratif yang kadang disisipkan Streamlit/BaseWeb */
+.panel-navy [role="progressbar"],
+.panel-navy [data-baseweb="progress-bar"],
+.panel-navy [data-testid="stDivider"],
+.panel-navy [data-testid="stDecoration"],
+.panel-navy [data-testid="stHeaderDecoration"],
+.panel-navy hr {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Jika dibungkus container kosong, singkirkan pembungkusnya juga */
+.panel-navy > div:has(> [role="progressbar"]),
+.panel-navy > div:has(> [data-baseweb="progress-bar"]),
+.panel-navy > div:has(> [data-testid="stDivider"]),
+.panel-navy > div:has(> hr) {
+  display: none !important;
+}
+
+/* Matikan pseudo-element dekoratif di heading jika ada */
+.panel-navy h1::before,
+.panel-navy h2::before,
+.panel-navy h3::before,
+.panel-navy h4::before,
+.panel-navy h1::after,
+.panel-navy h2::after,
+.panel-navy h3::after,
+.panel-navy h4::after {
+  content: none !important;
+  display: none !important;
+}
+
+
 /* ── PATCH: bersihkan baris hitam dekoratif di atas judul panel navy ── */
 .panel-navy hr,
 .panel-navy [role="progressbar"],
