@@ -983,7 +983,7 @@ try:
     # ======================================================================
     # Chatbot Koleksi
     # ======================================================================
-    st.markdown("<div class='panel-navy'>", unsafe_allow_html=True)
+    st.markdown("<div id='chatpanel-anchor'></div>", unsafe_allow_html=True)
     st.subheader("Chatbot Koleksi")
     st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
 
@@ -1058,7 +1058,9 @@ try:
             )
         except Exception:
             pass
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():   # semua isi Chatbot ada di dalam container ini
+    st.subheader("Chatbot Koleksi")
+    st.caption("Tanya jawab cepat terkait data di atas, kebijakan, dan langkah penanganan yang sesuai.")
 
 except Exception as e:
     log.exception("Top-level failure")
