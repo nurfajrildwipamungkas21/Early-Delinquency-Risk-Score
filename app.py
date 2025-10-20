@@ -332,24 +332,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# === CSS panel navy berdasar anchor ===
-st.markdown("""
-<style>
-/* Panel navy: container tepat setelah anchor */
-#chatpanel-anchor + div[data-testid="stVerticalBlock"] {
-  background: color-mix(in srgb, var(--navy) 92%, white 8%) !important;
-  border: 1px solid color-mix(in srgb, var(--navy) 50%, var(--border)) !important;
-  border-radius: 16px !important;
-  padding: 20px 18px !important;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--navy) 18%, transparent);
-}
-#chatpanel-anchor + div[data-testid="stVerticalBlock"] * {
-  color: var(--navy-ink) !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
 # ────────────────────────────────────────────────────────────────────────────────
