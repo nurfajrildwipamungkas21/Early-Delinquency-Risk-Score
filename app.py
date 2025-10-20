@@ -1093,30 +1093,27 @@ try:
             with st.chat_message(role):
                 st.markdown(_sanitize_chat(msg["parts"][0]["text"]))
 
-        # === PROMPT HYBRID (SATU GAYA) ===
-        preamble = (
-            "Anda asisten koleksi internal dengan nada hybrid: hangat, empatik, dan tetap ringkas. "
-            "Langkah jawab: 1 validasi singkat, 2 rangkum fakta dari konteks jika ada, 3 tawarkan opsi praktis yang tidak melanggar hukum, "
-            "4 akhiri dengan satu pertanyaan terbuka yang sopan. "
-            "Gunakan Bahasa Indonesia sehari-hari yang sopan, kalimat pendek, boleh pakai koma atau titik dua seperlunya. "
-            "Jika perlu menyebut dasar hukum, sebutkan KUHPerdata secara natural tanpa menakut-nakuti. "
-            "Hindari saran yang bertentangan dengan hukum, kekerasan, atau intimidasi."
-        )
-        
-        preamble = (
-            "Anda asisten koleksi internal dengan nada hybrid: hangat, empatik, dan tetap ringkas. "
-            "Langkah jawab: 1 validasi singkat, 2 rangkum fakta dari konteks jika ada, 3 tawarkan opsi praktis, "
-            "4 tutup dengan pertanyaan terbuka. "
-            "Jika cocok, gunakan daftar berpoin (-) atau bernomor untuk memperjelas, maksimal 5 poin per bagian. "
-            "Gunakan tanda baca secara natural; hindari simbol dekoratif berlebihan."
-        )
+    # === PROMPT HYBRID (SATU GAYA) ===
+    preamble = (
+        "Anda asisten koleksi internal dengan nada hybrid: hangat, empatik, dan tetap ringkas. "
+        "Langkah jawab: 1 validasi singkat, 2 rangkum fakta dari konteks jika ada, 3 tawarkan opsi praktis, "
+        "4 tutup dengan pertanyaan terbuka. Jika cocok, gunakan daftar berpoin (-) atau bernomor (maks 5 poin). "
+        "Gunakan tanda baca secara natural; hindari simbol dekoratif berlebihan. "
+        "Jika pengguna bertanya soal teknis AI (engine/model/API key/pelatihan), jangan jelaskan—arahkan ke Nur Fajril Dwi Pamungkas."
+    )
 
+    # input pengguna (HANYA SEKALI, dengan key unik)
+    user_prompt = st.chat_input("Ketik pertanyaan…", key="chat_input_main")
 
-        # input pengguna (PASTIKAN DIDEFINISIKAN sebelum dipakai)
-        user_prompt = st.chat_input("Ketik pertanyaan…")
-
-        if user_prompt:
-            # ringkasan konteks saat ini (opsional)
+    if user_prompt:
+        # === PRIVACY GUARD ===
+        if _is_meta_llm_query(user_prompt):
+            st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
+            with st.chat_message("assistant"):
+                st.markdown(PRIVACY_GUARD_MSG)
+            st.session_state.chat_messages.append({"role": "model", "parts": [{"text": PRIVACY_GUARD_MSG}]})
+        else:
+            # ringkasan konteks (opsional)
             ctx_obj = {
                 "ID": int(row_raw.get("ID")),
                 "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
@@ -1130,49 +1127,6 @@ try:
                 "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
             }
             ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
-            
-        user_prompt = st.chat_input("Ketik pertanyaan…")
-
-        if user_prompt:
-            # === PRIVACY GUARD: intercept pertanyaan meta tentang LLM/API key/engine/training ===
-            if _is_meta_llm_query(user_prompt):
-                st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
-                with st.chat_message("assistant"):
-                    st.markdown(PRIVACY_GUARD_MSG)
-                # simpan ke riwayat sebagai balasan asisten, tanpa memanggil LLM
-                st.session_state.chat_messages.append({"role": "model", "parts": [{"text": PRIVACY_GUARD_MSG}]})
-            else:
-                # (lanjutkan alur normal seperti sebelumnya)
-                ctx_obj = {
-                    "ID": int(row_raw.get("ID")),
-                    "LIMIT_BAL": int(row_raw.get("LIMIT_BAL")),
-                    "edrs_score": int(row_skor.get("edrs_score")),
-                    "bucket": str(row_skor.get("bucket")),
-                    "count_telat_3m": int(row_skor.get("count_telat_3m")),
-                    "count_telat_6m": int(row_skor.get("count_telat_6m")),
-                    "max_tunggakan_6m": int(row_skor.get("max_tunggakan_6m")),
-                    "ratio_bayar_last": float(row_skor.get("ratio_bayar_last")),
-                    "bill_trend_up": bool(row_skor.get("bill_trend_up")),
-                    "dpd_proxy_now": int(row_skor.get("dpd_proxy_now")),
-                }
-                ctx_text = f"\n\nKonteks saat ini:\n{json.dumps(ctx_obj, ensure_ascii=False)}" if use_ctx else ""
-
-                history = st.session_state.chat_messages.copy()
-                if not history:
-                    history.insert(0, {"role": "user", "parts": [{"text": preamble + ctx_text}]})
-                else:
-                    if use_ctx:
-                        history.append({"role": "user", "parts": [{"text": ctx_text}]})
-
-                history.append({"role": "user", "parts": [{"text": user_prompt}]})
-                st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
-
-                with st.chat_message("assistant"):
-                    with st.spinner("Menjawab…"):
-                        reply = _call_gemini_chat(history)
-                        reply_clean = _sanitize_chat(reply)
-                        st.markdown(reply_clean)
-                st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
             # siapkan riwayat untuk API
             history = st.session_state.chat_messages.copy()
@@ -1186,11 +1140,11 @@ try:
             history.append({"role": "user", "parts": [{"text": user_prompt}]})
             st.session_state.chat_messages.append({"role": "user", "parts": [{"text": user_prompt}]})
 
-            # panggil LLM
+            # panggil LLM sekali saja
             with st.chat_message("assistant"):
                 with st.spinner("Menjawab…"):
                     reply = _call_gemini_chat(history)
-                    reply_clean = _sanitize_chat(reply)  # pakai sanitizer longgar agar natural
+                    reply_clean = _sanitize_chat(reply)
                     st.markdown(reply_clean)
             st.session_state.chat_messages.append({"role": "model", "parts": [{"text": reply}]})
 
