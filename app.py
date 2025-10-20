@@ -311,10 +311,9 @@ st.markdown("""
 <style>
 /* ==== UII-like reading spec ===================================== */
 :root {
-  /* skala dasar untuk body copy */
-  --read-fs: 15.5px;         /* ~ UI/website kampus: nyaman dibaca */
-  --read-lh: 1.88;           /* line-height lapang */
-  --read-ch: 72ch;           /* lebar kolom ideal artikel */
+  --read-fs: 15.5px;   /* nyaman dibaca */
+  --read-lh: 1.88;     /* line-height lapang */
+  --read-ch: 72ch;     /* lebar kolom ideal artikel */
 }
 
 /* Teks umum */
@@ -324,16 +323,16 @@ st.markdown("""
   text-rendering: optimizeLegibility;
   font-kerning: normal;
   font-feature-settings: "liga" 1, "clig" 1, "kern" 1;
-  letter-spacing: .005em; /* sangat tipis agar nggak rapat */
+  letter-spacing: .005em;
 }
 
-/* Heading: tebal, tanpa letter-spacing lebay */
+/* Heading */
 h1,h2,h3,h4 {
   font-weight: 700 !important;
-  letter-spacing: 0 !important;
+  letter-spacing: normal !important;   /* <— pindahkan aturan ini ke sini */
   line-height: 1.25 !important;
-  margin-top: 0.4rem !important;
-  margin-bottom: 0.8rem !important;
+  margin-top: .4rem !important;
+  margin-bottom: .8rem !important;
 }
 
 /* Paragraf narasi (Insight & Kesimpulan) */
@@ -343,37 +342,28 @@ h1,h2,h3,h4 {
   line-height: var(--read-lh) !important;
   letter-spacing: .005em !important;
   word-spacing: .02em !important;
-  max-width: var(--read-ch) !important;  /* lebar kolom nyaman */
-  margin: .25rem 0 1.0rem 0 !important;  /* jarak antar paragraf */
+  max-width: var(--read-ch) !important;
+  margin: .25rem 0 1rem 0 !important;
   color: var(--fg) !important;
 }
-
-/* Pastikan blok narasi rapi saat di-inject via st.markdown */
 .legal-text p { margin: 0 0 .9rem 0 !important; }
 .legal-text strong, .legal-text b { font-weight: 700 !important; }
 
-/* Tabel tetap sedikit lebih kecil agar kontras dengan body copy */
+/* Tabel sedikit lebih kecil */
 .stDataFrame table { font-size: calc(var(--fs-base) * 0.95) !important; }
 
-/* Chat bubble di panel navy: jangan terlalu rapat */
+/* Chat bubble di panel navy */
 .panel-navy [data-testid="stChatMessage"] p {
   line-height: 1.7 !important;
   margin-bottom: .5rem !important;
 }
 
-/* Mobile: skala turun sedikit agar muat, tetap lapang */
+/* Mobile */
 @media (max-width: 640px) {
   :root { --read-fs: 15px; --read-ch: 90vw; }
 }
 </style>
 """, unsafe_allow_html=True)
-
-/* Hindari letter-spacing besar di heading */
-h1, h2, h3, h4 { letter-spacing: normal !important; }
-</style>
-""", unsafe_allow_html=True)
-
-
 
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
 st.markdown("""
