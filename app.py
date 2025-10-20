@@ -103,6 +103,7 @@ h1,h2,h3,h4 {{ font-weight:600; letter-spacing:.2px; }}
 .stDownloadButton > button:active, .stButton > button:active {
   transform: translateY(1px);
 }
+
 /* Komponen yang kita sembunyikan untuk kebersihan UI */
 /* Jangan sembunyikan footer karena Chat Input ada di sana */
 #MainMenu, header,
