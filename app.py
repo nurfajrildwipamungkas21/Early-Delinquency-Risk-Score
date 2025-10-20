@@ -968,9 +968,13 @@ try:
 
     # Kesimpulan berbasis LLM (fallback aman bila API gagal)
     st.markdown("#### Kesimpulan")
-    with st.spinner("Menyusun narasi…"):
-        kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
-        kesimpulan_text = _sanitize_plain(kesimpulan_text)
+    _ph = st.empty()
+    _ph.caption("Menyusun narasi…")  # indikator ringan tanpa progress bar
+
+    kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
+    kesimpulan_text = _sanitize_plain(kesimpulan_text)
+
+    _ph.empty()  # bersihkan indikator
     st.markdown(
         f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
         unsafe_allow_html=True
