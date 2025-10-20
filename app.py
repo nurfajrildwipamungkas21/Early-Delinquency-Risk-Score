@@ -109,6 +109,30 @@ footer .stAppDeployButton {{ display:none !important; }}
 footer [data-testid="stChatInput"] {{
   display:flex !important; visibility:visible !important; opacity:1 !important;
 }}
+
+/* ===== Theming Chat Input agar selaras ===== */
+footer {{ background: var(--bg) !important; border-top: 1px solid var(--border) !important; box-shadow: none !important; }}
+footer [data-testid="stChatInput"] {{ max-width: 1100px; margin: 0 auto; padding: 8px 0 16px; }}
+footer [data-testid="stChatInput"] > div {{
+  background: var(--card) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 6px 8px !important;
+}}
+footer [data-testid="stChatInput"] textarea,
+footer [data-testid="stChatInput"] input,
+footer [data-testid="stChatInput"] div[contenteditable="true"] {{
+  background: transparent !important; color: var(--fg) !important; caret-color: var(--accent) !important;
+  border: none !important; outline: none !important; box-shadow: none !important;
+}}
+footer [data-testid="stChatInput"] textarea::placeholder,
+footer [data-testid="stChatInput"] input::placeholder {{ color: var(--muted) !important; opacity: .95 !important; }}
+footer [data-testid="stChatInput"] button {{ background: var(--accent) !important; color:#fff !important; border:1px solid var(--border) !important; border-radius:10px !important; }}
+footer [data-testid="stChatInput"] button svg {{ color:#fff !important; fill: currentColor !important; }}
+
+/* Focus ring saat mengetik + ruang bawah konten */
+footer [data-testid="stChatInput"] > div:focus-within {{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent) !important; }}
+.block-container {{ padding-bottom: 3.25rem !important; }}
 footer [data-testid="stChatInput"] * {{
   color: var(--fg) !important;
 }}
