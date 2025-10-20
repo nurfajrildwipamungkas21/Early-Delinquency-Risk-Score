@@ -873,14 +873,14 @@ def _vars_for_theme(choice: str) -> str:
 _ui_fs = round(13.5 * ui_scale / 100, 2)
 _theme_vars = _vars_for_theme(theme_choice)
 
-st.markdown(f"""
+st.markdown("""
 <style>
 :root {{
-  --fs-base: {_ui_fs}px;
-  {_theme_vars}
+  --fs-base: {ui_fs}px;
+  {theme_vars}
 }}
 </style>
-""", unsafe_allow_html=True)
+""".format(ui_fs=_ui_fs, theme_vars=_theme_vars), unsafe_allow_html=True)
 
 # Mode mobile (ringkas kolom)
 mobile_compact = st.sidebar.toggle("Mode Mobile (ringkas kolom)", value=True,
