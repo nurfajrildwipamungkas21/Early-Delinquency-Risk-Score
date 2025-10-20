@@ -857,41 +857,48 @@ show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
 
-# Kontrol aksesibilitas UI
-theme_choice = st.sidebar.selectbox("Tema", ["Auto", "Terang", "Gelap"], index=0,
-                                    help="Auto mengikuti setting sistem. Pilih Terang/Gelap untuk memaksa tema.")
-ui_scale = st.sidebar.slider("Skala UI", min_value=90, max_value=120, value=105, step=5,
-                             help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%).")
+# ────────────────────────────────────────────────────────────────────────────────
+# Kontrol aksesibilitas UI — FORCE LIGHT THEME (tanpa opsi)
+# ────────────────────────────────────────────────────────────────────────────────
 
-# CSS override sesuai pilihan tema & skala
-def _vars_for_theme(choice: str) -> str:
-    if choice == "Terang":
-        return """
+# Hilangkan selectbox tema. Cukup skala UI saja.
+ui_scale = st.sidebar.slider(
+    "Skala UI", min_value=90, max_value=120, value=105, step=5,
+    help="Membesarkan teks & padding agar lebih terbaca (disarankan 105–110%)."
+)
+
+# Variabel CSS untuk Light theme (tetap)
+LIGHT_THEME_VARS = """
         --bg:#ffffff; --fg:#111827; --muted:#4b5563; --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
         --zebra: rgba(0,0,0,.035); --zebra2: rgba(0,0,0,.06); --thead: #f3f4f6;
-        """
-    if choice == "Gelap":
-        return """
-        --bg:#0b0f16; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f1720; --border:#2a3442; --accent:#38bdf8;
-        --zebra: rgba(255,255,255,.04); --zebra2: rgba(255,255,255,.07); --thead:#101826;
-        """
-    return ""  # Auto -> pakai prefers-color-scheme
+"""
 
 _ui_fs = round(13.5 * ui_scale / 100, 2)
-_theme_vars = _vars_for_theme(theme_choice)
 
+# Paksa :root selalu pakai Light + set color-scheme ke light agar kontrol native ikut terang.
 st.markdown("""
 <style>
 :root {{
+  color-scheme: light !important;
   --fs-base: {ui_fs}px;
   {theme_vars}
 }}
+/* Kalau OS user dark mode, tetap paksa var yang sama (Light) */
+@media (prefers-color-scheme: dark) {{
+  :root {{
+    color-scheme: light !important;
+    --fs-base: {ui_fs}px;
+    {theme_vars}
+  }}
+}}
 </style>
-""".format(ui_fs=_ui_fs, theme_vars=_theme_vars), unsafe_allow_html=True)
+""".format(ui_fs=_ui_fs, theme_vars=LIGHT_THEME_VARS), unsafe_allow_html=True)
 
-# Mode mobile (ringkas kolom)
-mobile_compact = st.sidebar.toggle("Mode Mobile (ringkas kolom)", value=True,
-                                   help="Saat aktif, tabel utama menampilkan kolom inti agar nyaman di layar HP.")
+# Mode mobile (ringkas kolom) tetap ada
+mobile_compact = st.sidebar.toggle(
+    "Mode Mobile (ringkas kolom)", value=True,
+    help="Saat aktif, tabel utama menampilkan kolom inti agar nyaman di layar HP."
+)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Load + compute + render
