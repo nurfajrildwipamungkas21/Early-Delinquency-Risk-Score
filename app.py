@@ -537,6 +537,27 @@ def _sanitize_chat(text: str) -> str:
     t = re.sub(r'\n{3,}', '\n\n', t)
     return t.strip()
 
+def _to_paragraphs(text: str, max_sent_per_para: int = 3, max_chars: int = 520) -> str:
+    # Potong ke kalimat
+    sents = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    paras, cur = [], []
+    for s in sents:
+        if not cur:
+            cur = [s]
+            continue
+        joined = " ".join(cur + [s])
+        # Pecah bila sudah cukup kalimat atau terlalu panjang
+        if len(cur) >= max_sent_per_para or len(joined) > max_chars:
+            paras.append(" ".join(cur))
+            cur = [s]
+        else:
+            cur.append(s)
+    if cur:
+        paras.append(" ".join(cur))
+    # Kembalikan HTML <p>…</p>
+    return "".join(f"<p>{p}</p>" for p in paras)
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Privacy guard: blokir pertanyaan meta tentang LLM/API key/engine/training
 # ────────────────────────────────────────────────────────────────────────────────
@@ -1083,22 +1104,19 @@ try:
     limit_pct = base_df["LIMIT_BAL"].rank(pct=True)
     limit_pct.index = base_df["ID"].values
     insight_text = generate_insight(row_raw, row_skor, limit_pct)
-    st.markdown(f"<div class='legal-text'>{insight_text}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='legal-text'>{_to_paragraphs(insight_text, max_sent_per_para=2, max_chars=420)}</div>", unsafe_allow_html=True)
 
-    # Kesimpulan berbasis LLM (fallback aman bila API gagal)
+    # Kesimpulan berbasis LLM
     st.markdown("#### Kesimpulan")
     _ph = st.empty()
-    _ph.caption("Menyusun narasi…")  # indikator ringan tanpa progress bar
+    _ph.caption("Menyusun narasi…")
 
     kesimpulan_text = get_or_generate_conclusion(id_value, row_raw, row_skor, insight_text)
     kesimpulan_text = _sanitize_plain(kesimpulan_text)
 
-    _ph.empty()  # bersihkan indikator
-    st.markdown(
-        f"<div class='legal-text' style='white-space:pre-wrap'>{kesimpulan_text}</div>",
-        unsafe_allow_html=True
-    )
-    
+    _ph.empty()
+    html_kes = _to_paragraphs(kesimpulan_text, max_sent_per_para=3, max_chars=520)
+    st.markdown(f"<div class='legal-text'>{html_kes}</div>", unsafe_allow_html=True)
 
     # ======================================================================
     # Chatbot Koleksi (Hybrid tone)
