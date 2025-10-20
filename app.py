@@ -1030,13 +1030,6 @@ try:
         unsafe_allow_html=True
     )
     
-    # Pilihan gaya jawaban (tone knob)
-    tone = st.radio(
-    "Gaya jawaban", 
-    ["Profesional ringkas", "Ramah empatik"],
-    index=1,
-    help="Ubah nada respons asisten."
-)
 
     # ======================================================================
     # Chatbot Koleksi (Hybrid tone)
