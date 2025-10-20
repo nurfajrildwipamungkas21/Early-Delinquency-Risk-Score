@@ -31,10 +31,11 @@ st.set_option("client.showSidebarNavigation", False)
 # ────────────────────────────────────────────────────────────────────────────────
 # Global CSS + meta PWA ringan (TANPA f-string)
 # ────────────────────────────────────────────────────────────────────────────────
+# === 1) GANTI font_link (ganti blok lama) ==========================
 font_link = """
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -46,8 +47,8 @@ GLOBAL_CSS = (
     + """
 <style>
 :root {
-  --font-body: "Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
-  --fs-base: 13.5px;
+  --font-body: "Source Sans 3","Inter","Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --fs-base: 14.75px; /* sedikit lebih besar dari 13.5 */
   /* Light theme only (forced) */
   --bg:#ffffff; --fg:#111827; --muted:#4b5563;
   --card:#ffffff; --border:#d1d5db; --accent:#0ea5e9;
@@ -294,8 +295,8 @@ input, select, textarea, .stNumberInput input, .stTextInput input {
 /* Mobile tweaks */
 @media (max-width: 640px) {
   :root { --fs-base: 13px; }
-  h1 { font-size:1.55rem !important; }
-  h2 { font-size:1.25rem !important; }
+  h1 { font-size: 1.9rem !important; }
+  h2 { font-size: 1.35rem !important; }
   .stDownloadButton { width:100% !important; }
 }
 </style>
@@ -308,21 +309,64 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 st.markdown("""
 <style>
-/* Gunakan font sistem yang stabil khusus paragraf narasi */
-.legal-text {
-  font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif !important;
-  letter-spacing: 0 !important;
-  word-spacing: normal !important;
-  font-kerning: none !important;
-  font-variant-ligatures: none !important;
-  font-feature-settings: "liga" 0, "clig" 0, "calt" 0 !important;
-  text-rendering: auto !important;         /* jangan optimizeSpeed */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  hyphens: manual !important;               /* jangan auto-hyphenate */
-  overflow-wrap: normal !important;
-  white-space: pre-wrap !important;         /* tetap menghormati newline */
+/* ==== UII-like reading spec ===================================== */
+:root {
+  /* skala dasar untuk body copy */
+  --read-fs: 15.5px;         /* ~ UI/website kampus: nyaman dibaca */
+  --read-lh: 1.88;           /* line-height lapang */
+  --read-ch: 72ch;           /* lebar kolom ideal artikel */
 }
+
+/* Teks umum */
+[data-testid="stAppViewContainer"] * {
+  font-family: var(--font-body) !important;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+  font-feature-settings: "liga" 1, "clig" 1, "kern" 1;
+  letter-spacing: .005em; /* sangat tipis agar nggak rapat */
+}
+
+/* Heading: tebal, tanpa letter-spacing lebay */
+h1,h2,h3,h4 {
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.25 !important;
+  margin-top: 0.4rem !important;
+  margin-bottom: 0.8rem !important;
+}
+
+/* Paragraf narasi (Insight & Kesimpulan) */
+.legal-text {
+  font-family: var(--font-body) !important;
+  font-size: var(--read-fs) !important;
+  line-height: var(--read-lh) !important;
+  letter-spacing: .005em !important;
+  word-spacing: .02em !important;
+  max-width: var(--read-ch) !important;  /* lebar kolom nyaman */
+  margin: .25rem 0 1.0rem 0 !important;  /* jarak antar paragraf */
+  color: var(--fg) !important;
+}
+
+/* Pastikan blok narasi rapi saat di-inject via st.markdown */
+.legal-text p { margin: 0 0 .9rem 0 !important; }
+.legal-text strong, .legal-text b { font-weight: 700 !important; }
+
+/* Tabel tetap sedikit lebih kecil agar kontras dengan body copy */
+.stDataFrame table { font-size: calc(var(--fs-base) * 0.95) !important; }
+
+/* Chat bubble di panel navy: jangan terlalu rapat */
+.panel-navy [data-testid="stChatMessage"] p {
+  line-height: 1.7 !important;
+  margin-bottom: .5rem !important;
+}
+
+/* Mobile: skala turun sedikit agar muat, tetap lapang */
+@media (max-width: 640px) {
+  :root { --read-fs: 15px; --read-ch: 90vw; }
+}
+</style>
+""", unsafe_allow_html=True)
 
 /* Hindari letter-spacing besar di heading */
 h1, h2, h3, h4 { letter-spacing: normal !important; }
