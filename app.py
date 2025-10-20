@@ -253,42 +253,40 @@ section[aria-label="chat"] a:hover {{ opacity: 1; }}
 }}
 
 /* TABEL: kontras tinggi */
-# --- CSS (lanjutan di GLOBAL_CSS) ---
-.stDataFrame {
+.stDataFrame {{
   background: var(--card) !important;
   border: 1.5px solid var(--border) !important;
-  border-radius: 14px !important;                 /* was 12px */
+  border-radius: 12px !important;
   padding: .25rem !important;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--fg) 6%, transparent); /* subtle depth */
-}
-.stDataFrame table { font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }
-.stDataFrame thead tr th {
+}}
+.stDataFrame table {{ font-size: calc(var(--fs-base) * 0.95) !important; color: var(--fg) !important; }}
+.stDataFrame thead tr th {{
   position: sticky; top: 0;
   background: var(--thead) !important; color: var(--fg) !important;
   font-weight: 600 !important; border-bottom: 2px solid var(--border) !important;
-}
-.stDataFrame tbody tr td { border-color: var(--border) !important; padding: 8px 10px !important; }
-.stDataFrame tbody tr:nth-child(even) td { background: var(--zebra) !important; }
-.stDataFrame tbody tr:nth-child(odd)  td { background: transparent !important; }
-.stDataFrame tbody tr:hover td { background: var(--zebra2) !important; }
+}}
+.stDataFrame tbody tr td {{ border-color: var(--border) !important; padding: 8px 10px !important; }}
+.stDataFrame tbody tr:nth-child(even) td {{ background: var(--zebra) !important; }}
+.stDataFrame tbody tr:nth-child(odd)  td {{ background: transparent !important; }}
+.stDataFrame tbody tr:hover td {{ background: var(--zebra2) !important; }}
 
 /* Input/widget: teks kontras */
-input, select, textarea, .stNumberInput input, .stTextInput input {
+input, select, textarea, .stNumberInput input, .stTextInput input {{
   color: var(--fg) !important; background: var(--card) !important; border-color: var(--border) !important;
-}
+}}
 
 /* Mobile tweaks */
-@media (max-width: 640px) {
-  :root { --fs-base: 13px; }
-  h1 { font-size:1.55rem !important; }
-  h2 { font-size:1.25rem !important; }
-  .stDownloadButton { width:100% !important; }
-}
+@media (max-width: 640px) {{
+  :root {{ --fs-base: 13px; }}
+  h1 {{ font-size:1.55rem !important; }}
+  h2 {{ font-size:1.25rem !important; }}
+  .stDownloadButton {{ width:100% !important; }}
+}}
 </style>
 """
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
-# Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
+# Tambahan CSS khusus untuk file_uploader (tempel setelah OVERRIDE_CSS)
 st.markdown("""
 <style>
 /* Bungkus utama komponen */
@@ -300,7 +298,7 @@ st.markdown("""
 [data-testid="stFileUploaderDropzone"]{
   background: var(--card) !important;
   border: 1.5px dashed var(--accent) !important;
-  border-radius: 12px !important;  /* boleh dinaikkan ke 14px jika ingin seragam */
+  border-radius: 12px !important;
 }
 [data-testid="stFileUploaderDropzone"]:hover,
 [data-testid="stFileUploaderDropzone"]:focus-within{
@@ -344,6 +342,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Konstanta & Path
