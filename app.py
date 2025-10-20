@@ -306,6 +306,23 @@ input, select, textarea, .stNumberInput input, .stTextInput input {
 GLOBAL_CSS = GLOBAL_CSS.replace("{{", "{").replace("}}", "}")
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Perbaiki teks yang pecah di paragraf panjang */
+.legal-text {
+  letter-spacing: normal !important;          /* buang letter-spacing */
+  font-variant-ligatures: none !important;    /* matikan ligatures standar */
+  font-feature-settings: "liga" 0, "clig" 0, "calt" 0 !important;
+  text-rendering: optimizeSpeed !important;   /* hindari hinting agresif */
+  -webkit-font-smoothing: antialiased;        /* tetap halus */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* (Opsional) Hindari letter-spacing di heading juga */
+h1, h2, h3, h4 { letter-spacing: normal !important; }
+</style>
+""", unsafe_allow_html=True)
+
 
 # Tambahan CSS khusus untuk file_uploader (tempel setelah GLOBAL_CSS)
 st.markdown("""
