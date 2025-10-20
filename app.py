@@ -463,20 +463,7 @@ def _call_gemini_chat(history: list[dict], timeout: int = 40) -> str:
         return "Maaf, layanan percakapan sedang tidak tersedia."
 
 def _sanitize_plain(text: str) -> str:
-    t = re.sub(r'^\\s*#{1,6}\\s*', '', text, flags=re.MULTILINE)
-    t = t.replace('**', '')
-    t = re.sub(r'^\\s*[-*•]\\s+', '', t, flags=re.MULTILINE)
-    t = re.sub(r'^\\s*\\d+\\.\\s+', '', t, flags=re.MULTILINE)
-    t = t.replace('*','').replace('_','').replace('—',' ')
-    t = t.replace(';', ',').replace(':', ' ')
-    t = re.sub(r'[ \\t]+',' ', t)
-    t = re.sub(r'\\n{3,}','\\n\\n', t)
-    t = re.sub(r'\\bini\\s+adalah\\s+ringkasan\\s+internal\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
-    t = re.sub(r'\\bbukan\\s+pendapat\\s+hukum\\s+final\\b.*?(?:\\.\\s*|$)', '', t, flags=re.IGNORECASE)
-    return t.strip()
-
-def _sanitize_plain(text: str) -> str:
-    # Hapus karakter tak terlihat yang sering bikin kata terpecah
+    # Bersihkan karakter tak terlihat (zero-width dsb.)
     ZW_CHARS = (
         "\u200b"  # zero width space
         "\u200c"  # zero width non-joiner
@@ -488,6 +475,20 @@ def _sanitize_plain(text: str) -> str:
     )
     for ch in ZW_CHARS:
         text = text.replace(ch, "")
+
+    # Normalisasi tanda & format markdown yang sering bikin aneh
+    t = text
+    t = re.sub(r'^\s*#{1,6}\s*', '', t, flags=re.MULTILINE)    # buang heading markdown
+    t = t.replace('**', '')
+    t = re.sub(r'^\s*[-*•]\s+', '', t, flags=re.MULTILINE)     # bulet
+    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)     # list bernomor
+    t = t.replace('*','').replace('_','').replace('—',' ')     # karakter dekoratif
+    t = t.replace(';', ',').replace(':', ' ')                   # jaga supaya tidak muncul titik dua/semicolon
+    t = re.sub(r'[ \t]+',' ', t)
+    t = re.sub(r'\n{3,}','\n\n', t)
+    t = re.sub(r'\bini\s+adalah\s+ringkasan\s+internal\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
+    t = re.sub(r'\bbukan\s+pendapat\s+hukum\s+final\b.*?(?:\.\s*|$)', '', t, flags=re.IGNORECASE)
+    return t.strip()
 
 
 # ────────────────────────────────────────────────────────────────────────────────
