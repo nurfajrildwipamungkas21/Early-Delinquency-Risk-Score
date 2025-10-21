@@ -5,3 +5,5 @@ requests>=2.31,<3
 openpyxl>=3.1,<4
 xlsxwriter>=3.1,<4
 xlrd>=2.0,<3
+qrcode[pil]>=7.4,<8
+segno>=1.6,<2
