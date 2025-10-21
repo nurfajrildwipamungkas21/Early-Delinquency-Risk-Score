@@ -25,6 +25,56 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+st.set_option("client.toolbarMode", "viewer")
+st.set_option("client.showSidebarNavigation", False)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# App public URL + QR utilities (statis)
+# ────────────────────────────────────────────────────────────────────────────────
+from functools import lru_cache
+
+# URL yang di-encode ke QR (statis). Disarankan pakai shortlink agar bisa diganti redirect tanpa ubah QR.
+APP_PUBLIC_URL = "https://early-delinquency-risk-score-nur-fajril-dwi-pamungkas.streamlit.app/"
+
+@lru_cache(maxsize=1)
+def make_qr_png(data: str, box_size: int = 10, border: int = 2) -> bytes:
+    """
+    Hasil: bytes PNG siap st.image / st.download_button
+    """
+    try:
+        import qrcode
+        import io as _io
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=box_size,
+            border=border,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception as e:
+        raise RuntimeError(f"Gagal membuat QR PNG: {e}")
+
+@lru_cache(maxsize=1)
+def make_qr_svg(data: str, scale: int = 6, border: int = 2) -> bytes:
+    """
+    Hasil: bytes SVG (tajam untuk proyektor/print besar). Opsional jika 'segno' terpasang.
+    """
+    try:
+        import segno, io as _io
+        qr = segno.make(data, error="m")
+        buf = _io.BytesIO()
+        qr.save(buf, kind="svg", scale=scale, border=border)
+        return buf.getvalue()
+    except Exception:
+        return b""
+
+
 st.set_option("client.toolbarMode", "viewer")
 st.set_option("client.showSidebarNavigation", False)
 
@@ -989,6 +1039,36 @@ if _saved:
 else:
     st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
 
+
+# ── QR akses instan ─────────────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+st.sidebar.subheader("Akses via QR")
+st.sidebar.caption("Scan untuk buka aplikasi ini di ponsel:")
+
+try:
+    _qr_png = make_qr_png(APP_PUBLIC_URL, box_size=8, border=2)
+    st.sidebar.image(_qr_png, caption=APP_PUBLIC_URL, use_container_width=False)
+    st.sidebar.download_button(
+        "Download QR (PNG)",
+        data=_qr_png,
+        file_name="EDRS_QR.png",
+        mime="image/png",
+        help="Unduh untuk ditempel di slide/poster"
+    )
+except Exception as _e:
+    st.sidebar.warning(f"QR PNG belum tersedia: {_e}")
+
+_qr_svg = make_qr_svg(APP_PUBLIC_URL, scale=6, border=2)
+if _qr_svg:
+    st.sidebar.download_button(
+        "Download QR (SVG)",
+        data=_qr_svg,
+        file_name="EDRS_QR.svg",
+        mime="image/svg+xml",
+        help="SVG tajam untuk proyektor/print"
+    )
+
+
 show_bucket_only = st.sidebar.multiselect(
     "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
 )
@@ -1044,8 +1124,16 @@ try:
     ] + (["default.payment.next.month"] if "default.payment.next.month" in out.columns else [])
     cols_for_display = core_cols if mobile_compact else full_cols
 
-    st.title("EDRS — Early Delinquency Risk Score")
-    st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
+    hdr_col_qr, hdr_col_title = st.columns([1, 6], vertical_alignment="center")
+    with hdr_col_qr:
+        try:
+            _qr_small = make_qr_png(APP_PUBLIC_URL, box_size=4, border=1)
+            st.image(_qr_small, use_container_width=False)
+        except Exception:
+            pass
+    with hdr_col_title:
+        st.title("EDRS — Early Delinquency Risk Score")
+        st.caption("Rule-based scoring untuk prioritas penagihan • UI Streamlit")
 
     col_header, col_topn = st.columns([4,1])
     col_header.subheader("Top Prioritas Very High atau High")
