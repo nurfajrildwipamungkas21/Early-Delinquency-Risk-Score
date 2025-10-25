@@ -467,6 +467,54 @@ INDEX_PATH = CACHE_DIR / "index.json"
 APP_DIR = Path(__file__).parent
 UPLOADED_DIR = APP_DIR / "data_uploaded"; UPLOADED_DIR.mkdir(exist_ok=True)
 SAVED_PATH = UPLOADED_DIR / "latest_data"
+# === [PERSIST VIA GITHUB CONTENTS API] =======================================
+import base64
+
+GH_REPO   = os.environ.get("GH_REPO")   or _secret_get("GH_REPO",   None)  # contoh: "nurfajrildwipamungkas21/Early-Delinquency-Risk-Score"
+GH_TOKEN  = os.environ.get("GH_TOKEN")  or _secret_get("GH_TOKEN",  None)  # PAT scope: repo (content)
+GH_BRANCH = os.environ.get("GH_BRANCH") or _secret_get("GH_BRANCH", "main")
+GH_PATH   = os.environ.get("GH_PATH")   or _secret_get("GH_PATH",   "data_uploaded/latest_data.parquet")
+
+def _gh_headers():
+    if not GH_TOKEN: raise RuntimeError("GH_TOKEN belum di-set")
+    return {"Authorization": f"token {GH_TOKEN}", "Accept": "application/vnd.github+json"}
+
+def _gh_get_latest_to_local() -> Path | None:
+    """Tarik file terakhir dari GitHub lalu tulis ke SAVED_PATH.*"""
+    if not (GH_REPO and GH_TOKEN and GH_PATH): return None
+    url = f"https://api.github.com/repos/{GH_REPO}/contents/{GH_PATH}?ref={GH_BRANCH}"
+    try:
+        r = requests.get(url, headers=_gh_headers(), timeout=30); r.raise_for_status()
+        j = r.json()
+        content = base64.b64decode(j["content"])
+        suffix  = Path(GH_PATH).suffix or ".parquet"
+        p = SAVED_PATH.with_suffix(suffix)
+        p.write_bytes(content)
+        log.info(f"Pulled latest data from GitHub → {p.name}")
+        return p
+    except Exception as e:
+        log.info(f"GH pull skip: {e}")
+        return None
+
+def _gh_put_local_file(p: Path):
+    """Commit/update file upload terakhir ke GitHub (branch GH_BRANCH)."""
+    if not (GH_REPO and GH_TOKEN and GH_PATH and p.exists()): return
+    url = f"https://api.github.com/repos/{GH_REPO}/contents/{GH_PATH}"
+    # cek sha lama (jika file sudah ada)
+    sha = None
+    try:
+        r0 = requests.get(url, headers=_gh_headers(), timeout=15); 
+        if r0.status_code == 200: sha = r0.json().get("sha")
+    except Exception:
+        pass
+    body = {
+        "message": "update latest_data via EDRS app",
+        "content": base64.b64encode(p.read_bytes()).decode(),
+        "branch": GH_BRANCH
+    }
+    if sha: body["sha"] = sha
+    r = requests.put(url, headers=_gh_headers(), json=body, timeout=30); r.raise_for_status()
+    log.info(f"Pushed latest data to GitHub path {GH_PATH}")
 MAX_UPLOAD_MB = int(os.environ.get("EDRS_MAX_UPLOAD_MB", "25"))
 
 ALLOWED_PASAL = {
@@ -1015,30 +1063,57 @@ def build_excel(top_prior_all: pd.DataFrame, cols_for_display: list) -> bytes:
     buf.seek(0)
     return buf.read()
 
+# --- [HOOK: startup] tarik dari GitHub jika lokal kosong -----------------------
+_saved = _saved_file_path()
+if not _saved:
+    pulled = _gh_get_latest_to_local()
+    _saved = pulled or _saved_file_path()
+
 # ────────────────────────────────────────────────────────────────────────────────
 # UI — Sidebar
 # ────────────────────────────────────────────────────────────────────────────────
 st.sidebar.header("Pengaturan")
 
 uploaded_sb = st.sidebar.file_uploader(
-    "Unggah data (CSV / XLS/XLSX/Parquet)", type=["csv","xls","xlsx","parquet"]
+    "Unggah data (CSV / XLS/XLSX/Parquet)",
+    type=["csv", "xls", "xlsx", "parquet"]
 )
+
 if uploaded_sb is not None:
-    size_mb = uploaded_sb.size / (1024*1024)
+    size_mb = uploaded_sb.size / (1024 * 1024)
     if size_mb > MAX_UPLOAD_MB:
-        st.sidebar.error(f"Ukuran file {size_mb:.1f} MB melebihi batas {MAX_UPLOAD_MB} MB. Kompres atau bagi file Anda.")
+        st.sidebar.error(
+            f"Ukuran file {size_mb:.1f} MB melebihi batas {MAX_UPLOAD_MB} MB. "
+            "Kompres atau bagi file Anda."
+        )
         st.stop()
+
+    # Simpan ke lokal (SAVED_PATH.*)
     dst = _save_uploaded(uploaded_sb)
-    st.sidebar.success(f"File tersimpan: {dst.name}. Aplikasi akan memakai data ini sebagai default.")
+
+    # Coba sinkronkan ke GitHub agar persisten lintas restart
+    try:
+        _gh_put_local_file(dst)
+        st.sidebar.success(
+            f"File tersimpan: {dst.name}. "
+            "Sudah disinkronkan ke GitHub sebagai 'latest_data'."
+        )
+    except Exception as e:
+        log.warning(f"GH push gagal: {e}")
+        st.sidebar.warning(
+            f"File lokal tersimpan: {dst.name}, namun sinkronisasi GitHub gagal: {e}"
+        )
+
+    # Reset cache & reload agar app langsung memakai file baru
     st.cache_data.clear()
     st.rerun()
 
-_saved = _saved_file_path()
-if _saved:
-    st.sidebar.caption(f"📄 Data aktif: **{_saved.name}** (tersimpan)")
+# INFO status data aktif (HOOK startup sudah mencoba menarik dari GitHub)
+_current_saved = _saved_file_path()
+if _current_saved:
+    st.sidebar.caption(f"📄 Data aktif: **{_current_saved.name}** (tersimpan)")
 else:
-    st.sidebar.caption("⚠️ Belum ada data tersimpan. Gunakan sampel repo jika tersedia atau unggah file.")
-
+    st.sidebar.caption("⚠️ Belum ada data tersimpan. Unggah file atau gunakan sampel repo.")
 
 # ── QR akses instan ─────────────────────────────────────────────────────────────
 st.sidebar.markdown("---")
@@ -1068,9 +1143,11 @@ if _qr_svg:
         help="SVG tajam untuk proyektor/print"
     )
 
-
+# Filter bucket
 show_bucket_only = st.sidebar.multiselect(
-    "Filter bucket", ["Very High","High","Med","Low","Very Low"], default=["Very High","High"]
+    "Filter bucket",
+    ["Very High", "High", "Med", "Low", "Very Low"],
+    default=["Very High", "High"]
 )
 
 # ────────────────────────────────────────────────────────────────────────────────
